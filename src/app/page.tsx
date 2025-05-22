@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LogRunForm } from '@/components/log-run-form';
 import { RunHistory } from '@/components/run-history';
 import { ScuTotalsDisplay } from '@/components/scu-totals-display';
@@ -29,9 +30,9 @@ export default function HomePage() {
   }, []);
 
 
-  const handleRunLogged = (newRun: HaulingRun) => {
+  const handleRunLogged = useCallback((newRun: HaulingRun) => {
     setHaulingRuns(prevRuns => [newRun, ...prevRuns]);
-  };
+  }, []); // setHaulingRuns is stable, so empty dependency array is fine.
 
   if (!isClient) {
     // Render a loading state or simplified version for SSR/prerender
