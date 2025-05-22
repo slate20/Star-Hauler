@@ -13,7 +13,7 @@ import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { StopwatchDisplay } from '@/components/stopwatch-display';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, User } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, User, Users, Coins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { Input } from '@/components/ui/input';
@@ -322,18 +322,21 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     let nextActive = [...activeContracts];
     let nextCompleted = [...completedContracts];
 
-    let contractToUpdate = nextActive.find(c => c.id === contractId);
+    let contractToUpdateIndexInActive = nextActive.findIndex(c => c.id === contractId);
+    let contractToUpdateIndexInCompleted = -1;
     let sourceListWasActive = true;
+    let contractToUpdate: ContractV2 | undefined = nextActive[contractToUpdateIndexInActive];
 
     if (!contractToUpdate) {
-        contractToUpdate = nextCompleted.find(c => c.id === contractId);
+        contractToUpdateIndexInCompleted = nextCompleted.findIndex(c => c.id === contractId);
+        contractToUpdate = nextCompleted[contractToUpdateIndexInCompleted];
         sourceListWasActive = false;
-        if (!contractToUpdate) return; 
+        if (!contractToUpdate) return;
     }
 
-    const originalContractState = JSON.parse(JSON.stringify(contractToUpdate)); 
+    const originalContractState = JSON.parse(JSON.stringify(contractToUpdate)) as ContractV2;
 
-    const updatedTasks = originalContractState.destinationTasks.map((task: DestinationTask) => {
+    const updatedTasks = originalContractState.destinationTasks.map(task => {
         if (task.id === taskId) {
             const newStatus = !task.isComplete;
             taskChangeDescription = `Task for ${task.destination} (${originalContractState.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
@@ -343,33 +346,33 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     });
 
     const updatedContract = { ...originalContractState, destinationTasks: updatedTasks };
-    const allTasksNowComplete = updatedTasks.every((t: DestinationTask) => t.isComplete);
+    const allTasksNowComplete = updatedTasks.every(t => t.isComplete);
 
     if (sourceListWasActive) {
         if (allTasksNowComplete) {
-            nextActive = nextActive.filter(c => c.id !== contractId);
+            nextActive.splice(contractToUpdateIndexInActive, 1); // Remove from active
             if (!nextCompleted.find(c => c.id === contractId)) {
-                 nextCompleted = [...nextCompleted, updatedContract];
-            } else { 
+                 nextCompleted.push(updatedContract); // Add to completed
+            } else { // Should not happen if it was in active, but as a safeguard
                  nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Complete";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved to Log Book.`;
         } else {
-            nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
+            nextActive[contractToUpdateIndexInActive] = updatedContract; // Update in active
         }
-    } else { 
+    } else { // Source was completed
         if (!allTasksNowComplete) { 
-            nextCompleted = nextCompleted.filter(c => c.id !== contractId);
+            nextCompleted.splice(contractToUpdateIndexInCompleted, 1); // Remove from completed
             if (!nextActive.find(c => c.id === contractId)) {
-                nextActive = [...nextActive, updatedContract];
-            } else {
+                nextActive.push(updatedContract); // Add to active
+            } else { // Safeguard
                 nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Reopened";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved back to Active Contracts.`;
         } else { 
-            nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
+            nextCompleted[contractToUpdateIndexInCompleted] = updatedContract; // Update in completed
         }
     }
     
@@ -392,55 +395,50 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     let anyTasksMarkedThisOperation = false;
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
-    let currentActiveContracts = [...activeContracts]; 
-    let currentCompletedContracts = [...completedContracts];
-    
-    const affectedContractIdsThisOperation = new Set<string>();
+    const nextActiveContracts = [...activeContracts];
+    const nextCompletedContracts = [...completedContracts];
+    const contractsToMoveToCompleted: ContractV2[] = [];
+    const updatedActiveContracts: ContractV2[] = [];
 
-    const potentiallyUpdatedActiveContracts = currentActiveContracts.map(contract => {
+    nextActiveContracts.forEach(contract => {
         let tasksModifiedInThisContract = false;
         const newDestinationTasks = contract.destinationTasks.map(task => {
             if (task.destination === destinationName && !task.isComplete) {
                 tasksModifiedInThisContract = true;
                 anyTasksMarkedThisOperation = true;
-                affectedContractIdsThisOperation.add(contract.id);
                 return { ...task, isComplete: true };
             }
             return task;
         });
-        return tasksModifiedInThisContract ? { ...contract, destinationTasks: newDestinationTasks } : contract;
-    });
-    
-    const nextActiveAfterThisOperation: ContractV2[] = [];
-    const newlyCompletedFromThisOperation: ContractV2[] = [];
 
-    potentiallyUpdatedActiveContracts.forEach(contract => {
-        if (affectedContractIdsThisOperation.has(contract.id)) { 
-            if (contract.destinationTasks.every(t => t.isComplete)) {
-                newlyCompletedFromThisOperation.push(contract);
-                 contractsThatBecameCompleteMessages.push({
+        if (tasksModifiedInThisContract) {
+            const updatedContract = { ...contract, destinationTasks: newDestinationTasks };
+            if (updatedContract.destinationTasks.every(t => t.isComplete)) {
+                contractsToMoveToCompleted.push(updatedContract);
+                contractsThatBecameCompleteMessages.push({
                     title: "Contract Complete",
-                    description: `Contract ${contract.contractNumber} moved to Log Book.`
+                    description: `Contract ${updatedContract.contractNumber} moved to Log Book.`
                 });
             } else {
-                nextActiveAfterThisOperation.push(contract);
+                updatedActiveContracts.push(updatedContract);
             }
-        } else { 
-             nextActiveAfterThisOperation.push(contract); 
-        }
-    });
-
-    let nextCompletedAfterThisOperation = [...currentCompletedContracts];
-    newlyCompletedFromThisOperation.forEach(newlyCompletedContract => {
-        if (!nextCompletedAfterThisOperation.find(c => c.id === newlyCompletedContract.id)) {
-            nextCompletedAfterThisOperation.push(newlyCompletedContract);
-        } else { 
-            nextCompletedAfterThisOperation = nextCompletedAfterThisOperation.map(c => c.id === newlyCompletedContract.id ? newlyCompletedContract : c);
+        } else {
+            updatedActiveContracts.push(contract);
         }
     });
     
-    setActiveContracts(nextActiveAfterThisOperation.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
-    setCompletedContracts(nextCompletedAfterThisOperation.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    // Add newly completed contracts to nextCompletedContracts, avoiding duplicates
+    contractsToMoveToCompleted.forEach(newlyCompleted => {
+        if (!nextCompletedContracts.find(c => c.id === newlyCompleted.id)) {
+            nextCompletedContracts.push(newlyCompleted);
+        } else { // If somehow it's already there, update it
+            const index = nextCompletedContracts.findIndex(c => c.id === newlyCompleted.id);
+            if (index !== -1) nextCompletedContracts[index] = newlyCompleted;
+        }
+    });
+    
+    setActiveContracts(updatedActiveContracts.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setCompletedContracts(nextCompletedContracts.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
 
     setTimeout(() => {
         contractsThatBecameCompleteMessages.forEach(msg => toast(msg));
@@ -592,18 +590,10 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 md:gap-8 items-start">
           
           <div className="lg:col-span-2 lg:sticky lg:top-28 space-y-6 md:space-y-8"> 
-            <Card className="shadow-xl bg-card/90">
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">New Contract</CardTitle>
-                <CardDescription>Log a new contract with all its destinations and goods.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full">
-                  <PlusCircle className="mr-2 h-5 w-5" />
-                  Log New Contract
-                </Button>
-              </CardContent>
-            </Card>
+            <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full text-base py-3">
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Log New Contract
+            </Button>
             
             <CargoInventoryDisplay contracts={activeContracts} />
           </div>
