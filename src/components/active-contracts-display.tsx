@@ -3,23 +3,44 @@
 
 import type React from 'react';
 import type { Contract } from '@/lib/types';
+import type { UEXCommodity } from '@/lib/uexcorp-types';
 import { ContractAccordionItem } from './contract-accordion-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion } from '@/components/ui/accordion';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ActiveContractsDisplayProps = {
   contracts: Contract[];
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
+  commodities: UEXCommodity[];
+  isLoadingCommodities: boolean;
 };
 
 export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
   contracts, 
   onUpdateGoodQuantity, 
   onRemoveGood, 
-  onAddGoodToContract 
+  onAddGoodToContract,
+  commodities,
+  isLoadingCommodities
 }) => {
+  if (isLoadingCommodities && contracts.length === 0) {
+    return (
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-xl">Active Contracts</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+  
   if (!contracts || contracts.length === 0) {
     return (
       <Card className="shadow-xl">
@@ -33,7 +54,6 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     );
   }
 
-  // Sort contracts by destination name for consistent display
   const sortedContracts = [...contracts].sort((a, b) => a.destination.localeCompare(b.destination));
 
   return (
@@ -52,6 +72,8 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
               onUpdateGoodQuantity={onUpdateGoodQuantity}
               onRemoveGood={onRemoveGood}
               onAddGoodToContract={onAddGoodToContract}
+              commodities={commodities}
+              isLoadingCommodities={isLoadingCommodities}
             />
           ))}
         </Accordion>

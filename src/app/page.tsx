@@ -6,20 +6,42 @@ import { ContractItemForm } from '@/components/contract-item-form';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
 import type { Contract, Good, ContractItemData } from '@/lib/types';
+import type { UEXLocation, UEXCommodity } from '@/lib/uexcorp-types';
+import { fetchDestinationsAction, fetchCommoditiesAction } from '@/lib/server-actions/uexcorp-actions';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HomePage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
 
+  const [apiDestinations, setApiDestinations] = useState<UEXLocation[]>([]);
+  const [apiCommodities, setApiCommodities] = useState<UEXCommodity[]>([]);
+  const [isLoadingApiData, setIsLoadingApiData] = useState(true);
+
   useEffect(() => {
     setIsClient(true);
-    // In a real app, this might be fetched from localStorage or an API
-    // For now, we start with an empty list of contracts.
-  }, []);
+    async function loadApiData() {
+      setIsLoadingApiData(true);
+      try {
+        const [destinations, commodities] = await Promise.all([
+          fetchDestinationsAction(),
+          fetchCommoditiesAction()
+        ]);
+        setApiDestinations(destinations);
+        setApiCommodities(commodities);
+      } catch (error) {
+        console.error("Failed to load API data", error);
+        toast({ variant: "destructive", title: "API Error", description: "Could not load destinations or commodities." });
+      } finally {
+        setIsLoadingApiData(false);
+      }
+    }
+    loadApiData();
+  }, [toast]);
 
   const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
     setContracts(prevContracts => {
@@ -32,7 +54,7 @@ export default function HomePage() {
 
         if (existingGoodIndex > -1) {
           const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
-          goodToUpdate.quantity += newItem.quantity; // Sum quantities
+          goodToUpdate.quantity += newItem.quantity;
           contractToUpdate.goods = [
             ...contractToUpdate.goods.slice(0, existingGoodIndex),
             goodToUpdate,
@@ -72,12 +94,12 @@ export default function HomePage() {
               .map(good =>
                 good.id === goodId ? { ...good, quantity: newQuantity } : good
               )
-              .filter(good => good.quantity > 0); // Remove good if quantity is 0 or less
+              .filter(good => good.quantity > 0); 
             return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
+        .filter(contract => contract.goods.length > 0) 
     );
     toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
   }, [toast]);
@@ -92,7 +114,7 @@ export default function HomePage() {
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
+        .filter(contract => contract.goods.length > 0) 
     );
     toast({ title: "Good Removed", description: "The good has been removed from the contract." });
   }, [toast]);
@@ -108,12 +130,10 @@ export default function HomePage() {
           const existingGoodIndex = contract.goods.findIndex(g => g.productName === goodData.productName);
           let updatedGoods;
           if (existingGoodIndex > -1) {
-            // Good already exists, update quantity
             updatedGoods = contract.goods.map((g, index) =>
               index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
             );
           } else {
-            // Add new good
             const newGood: Good = {
               id: crypto.randomUUID(),
               productName: goodData.productName,
@@ -153,20 +173,35 @@ export default function HomePage() {
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
                 <CardTitle className="text-2xl">Add Contract Item</CardTitle>
-                <CardDescription>Enter details for goods to be hauled.</CardDescription>
+                <CardDescription>Select destination, product, and quantity.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ContractItemForm onItemAdded={handleContractItemAdded} />
+                {isLoadingApiData ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <ContractItemForm 
+                    onItemAdded={handleContractItemAdded} 
+                    destinations={apiDestinations}
+                    commodities={apiCommodities}
+                  />
+                )}
               </CardContent>
             </Card>
           </div>
 
           <div className="lg:col-span-5 space-y-8">
-            <ActiveContractsDisplay 
+             <ActiveContractsDisplay 
               contracts={contracts} 
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
+              commodities={apiCommodities} // Pass commodities here
+              isLoadingCommodities={isLoadingApiData}
             />
             <QuantityTotalsDisplay contracts={contracts} />
           </div>
@@ -174,7 +209,7 @@ export default function HomePage() {
       </main>
       
       <footer className="text-center p-6 text-muted-foreground text-sm border-t border-border mt-12">
-        Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts.
+        Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts. Data from uexcorp.space.
       </footer>
     </div>
   );

@@ -8,8 +8,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addContractItemAction } from '@/lib/actions';
 import type { ContractItemData, ContractFormState } from '@/lib/types';
+import type { UEXLocation, UEXCommodity } from '@/lib/uexcorp-types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -19,19 +27,22 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Rocket, Package, Hash, Send, Warehouse } from 'lucide-react';
+import { Rocket, Package, Warehouse, Send } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
-  destination: z.string().min(3, "Destination must be at least 3 characters"),
-  productName: z.string().min(2, "Product name must be at least 2 characters"),
+  destination: z.string().min(1, "Please select a destination"),
+  productName: z.string().min(1, "Please select a product"),
   quantity: z.coerce.number().positive("Quantity must be a positive number").int("Quantity must be a whole number"),
 });
 
 type ContractItemFormProps = {
   onItemAdded: (newItem: ContractItemData) => void;
+  destinations: UEXLocation[];
+  commodities: UEXCommodity[];
 };
 
-export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded }) => {
+export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded, destinations, commodities }) => {
   const { toast } = useToast();
   const [state, formAction, isPending] = useActionState<ContractFormState, FormData>(addContractItemAction, null);
 
@@ -46,7 +57,11 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded 
 
   useEffect(() => {
     if (state?.success && state.item) {
-      form.reset();
+      form.reset(); 
+      // Reset to actual empty strings which Select needs to show placeholder
+      form.setValue('destination', '');
+      form.setValue('productName', '');
+      form.setValue('quantity', '' as unknown as number); // Keep quantity as empty string for UI
       onItemAdded(state.item);
       toast({
         title: "Contract Item Processed!",
@@ -81,9 +96,22 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded 
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Rocket className="mr-2 h-4 w-4 text-accent" />Destination</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Mars Colony, Titan Orbital" {...field} />
-              </FormControl>
+              <Select onValueChange={field.onChange} value={field.value || ""} defaultValue="">
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a destination" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <ScrollArea className="h-[200px]">
+                    {destinations.map((dest) => (
+                      <SelectItem key={dest.uuid} value={dest.name}>
+                        {dest.name} ({dest.celestial_body.name})
+                      </SelectItem>
+                    ))}
+                  </ScrollArea>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -94,9 +122,22 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded 
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-accent" />Product Name</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g., Water Ice, Starship Components" {...field} />
-              </FormControl>
+               <Select onValueChange={field.onChange} value={field.value || ""} defaultValue="">
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a product" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <ScrollArea className="h-[200px]">
+                    {commodities.map((com) => (
+                      <SelectItem key={com.uuid} value={com.name}>
+                        {com.name}
+                      </SelectItem>
+                    ))}
+                  </ScrollArea>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -108,7 +149,7 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded 
             <FormItem>
               <FormLabel className="flex items-center"><Warehouse className="mr-2 h-4 w-4 text-accent" />Quantity</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 150" {...field} />
+                <Input type="number" placeholder="e.g., 150" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10) || '')} />
               </FormControl>
               <FormMessage />
             </FormItem>

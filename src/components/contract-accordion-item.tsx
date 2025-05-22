@@ -3,25 +3,40 @@
 
 import React, { useState } from 'react';
 import type { Contract } from '@/lib/types';
+import type { UEXCommodity } from '@/lib/uexcorp-types';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Rocket, Package, Warehouse, Plus, Minus, Trash2, Check, X, PlusSquare, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+
 
 type ContractAccordionItemProps = {
   contract: Contract;
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
+  commodities: UEXCommodity[];
+  isLoadingCommodities: boolean;
 };
 
 export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({ 
   contract, 
   onUpdateGoodQuantity, 
   onRemoveGood, 
-  onAddGoodToContract 
+  onAddGoodToContract,
+  commodities,
+  isLoadingCommodities
 }) => {
   const [isAddingGood, setIsAddingGood] = useState(false);
   const [newGoodName, setNewGoodName] = useState("");
@@ -35,7 +50,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
       setNewGoodQuantity("");
       setIsAddingGood(false);
     } else {
-      // Basic validation feedback, could use toast here or rely on parent's toast
+      // Consider using toast for better UX
       alert("Product name cannot be empty and quantity must be a positive number.");
     }
   };
@@ -46,7 +61,6 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
     <AccordionItem value={contract.id} className="border-none">
       <Card className="shadow-lg bg-card/95 animate-in fade-in-50 slide-in-from-bottom-5">
         <AccordionTrigger className="p-0 hover:no-underline [&[data-state=open]>div>svg.lucide-chevron-down]:rotate-180">
-          {/* CardHeader content directly inside trigger for better layout control */}
           <div className="flex flex-1 items-center justify-between p-6 w-full">
             <div className="flex items-center">
               <Rocket className="mr-3 h-6 w-6 text-primary" />
@@ -55,12 +69,12 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
             <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200" />
           </div>
         </AccordionTrigger>
-        <AccordionContent className="pt-0"> {/* pt-0 because CardHeader equivalent is in Trigger */}
+        <AccordionContent className="pt-0">
           <CardContent className="space-y-3 pb-4">
             {sortedGoods.length > 0 ? (
               sortedGoods.map((good) => (
                 <div key={good.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-background/50 rounded-md gap-2">
-                  <div className="flex items-center flex-grow min-w-0"> {/* Added min-w-0 for truncation */}
+                  <div className="flex items-center flex-grow min-w-0">
                     <Package className="mr-2 h-5 w-5 text-accent flex-shrink-0" />
                     <span className="font-medium mr-2 truncate" title={good.productName}>{good.productName}</span>
                   </div>
@@ -103,20 +117,30 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
           <CardFooter className="flex flex-col items-stretch p-4">
             {isAddingGood ? (
               <div className="space-y-3">
-                <Input
-                  type="text"
-                  placeholder="New Product Name"
-                  value={newGoodName}
-                  onChange={(e) => setNewGoodName(e.target.value)}
-                  onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
-                  className="h-9"
-                />
+                {isLoadingCommodities ? (
+                  <Skeleton className="h-9 w-full" />
+                ) : (
+                  <Select onValueChange={setNewGoodName} value={newGoodName}>
+                    <SelectTrigger onClick={(e) => e.stopPropagation()} className="h-9">
+                      <SelectValue placeholder="Select a product to add" />
+                    </SelectTrigger>
+                    <SelectContent onClick={(e) => e.stopPropagation()}>
+                       <ScrollArea className="h-[150px]">
+                        {commodities.map((com) => (
+                          <SelectItem key={com.uuid} value={com.name} onClick={(e) => e.stopPropagation()}>
+                            {com.name}
+                          </SelectItem>
+                        ))}
+                      </ScrollArea>
+                    </SelectContent>
+                  </Select>
+                )}
                 <Input
                   type="number"
                   placeholder="Quantity"
                   value={newGoodQuantity}
                   onChange={(e) => setNewGoodQuantity(e.target.value)}
-                  onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
+                  onClick={(e) => e.stopPropagation()}
                   min="1"
                   className="h-9"
                 />
