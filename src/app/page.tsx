@@ -12,11 +12,12 @@ import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { StopwatchDisplay } from '@/components/stopwatch-display';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Users, Coins, ArrowUp, ArrowDown, TimerIcon, Gauge, TrendingUp, Hourglass } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, Users, Coins, ArrowUp, ArrowDown, TimerIcon, Gauge, TrendingUp, Hourglass, FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -326,11 +327,11 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
 
     const activeContractIndex = nextActiveContracts.findIndex(c => c.id === contractId);
     if (activeContractIndex !== -1) {
-        contractToUpdate = { ...nextActiveContracts[activeContractIndex] };
+        contractToUpdate = JSON.parse(JSON.stringify(nextActiveContracts[activeContractIndex]));
     } else {
         const completedContractIndex = nextCompletedContracts.findIndex(c => c.id === contractId);
         if (completedContractIndex !== -1) {
-            contractToUpdate = { ...nextCompletedContracts[completedContractIndex] };
+            contractToUpdate = JSON.parse(JSON.stringify(nextCompletedContracts[completedContractIndex]));
             wasActive = false;
         }
     }
@@ -353,7 +354,6 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
 
         if (wasActive) {
             if (allTasksComplete) {
-                // Move from active to completed
                 nextActiveContracts = nextActiveContracts.filter(c => c.id !== contractId);
                 if (!nextCompletedContracts.find(compC => compC.id === contractToUpdate!.id)) {
                      nextCompletedContracts = [...nextCompletedContracts, contractToUpdate].sort((a, b) => a.contractNumber.localeCompare(b.contractNumber));
@@ -362,12 +362,10 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
                 contractStatusChangeDescription = `Contract ${contractToUpdate.contractNumber} moved to Log Book.`;
                 contractMoved = true;
             } else {
-                // Update in active
                 nextActiveContracts = nextActiveContracts.map(c => c.id === contractId ? contractToUpdate! : c);
             }
-        } else { // Was in completed
+        } else { 
             if (!allTasksComplete) {
-                // Move from completed to active
                 nextCompletedContracts = nextCompletedContracts.filter(c => c.id !== contractId);
                  if (!nextActiveContracts.find(actC => actC.id === contractToUpdate!.id)) {
                     nextActiveContracts = [...nextActiveContracts, contractToUpdate].sort((a, b) => a.contractNumber.localeCompare(b.contractNumber));
@@ -376,7 +374,6 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
                 contractStatusChangeDescription = `Contract ${contractToUpdate.contractNumber} moved back to Active Contracts.`;
                 contractMoved = true;
             } else {
-                 // Update in completed (shouldn't happen if already all complete, but good for safety)
                  nextCompletedContracts = nextCompletedContracts.map(c => c.id === contractId ? contractToUpdate! : c);
             }
         }
@@ -401,20 +398,16 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
     const updatedActiveContracts = activeContracts.map(contract => {
-        let tasksModifiedInThisContract = false;
+        let contractModified = false;
         const newDestinationTasks = contract.destinationTasks.map(task => {
             if (task.destination === destinationName && !task.isComplete) {
-                tasksModifiedInThisContract = true;
                 anyTasksMarkedThisOperation = true;
+                contractModified = true;
                 return { ...task, isComplete: true };
             }
             return task;
         });
-
-        if (tasksModifiedInThisContract) {
-            return { ...contract, destinationTasks: newDestinationTasks };
-        }
-        return contract;
+        return contractModified ? { ...contract, destinationTasks: newDestinationTasks } : contract;
     });
 
     const stillActive: ContractV2[] = [];
@@ -422,11 +415,17 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
     updatedActiveContracts.forEach(contract => {
         if (contract.destinationTasks.every(t => t.isComplete)) {
-            newlyCompleted.push(contract);
-            contractsThatBecameCompleteMessages.push({
-                title: "Contract Complete",
-                description: `Contract ${contract.contractNumber} moved to Log Book.`
-            });
+            if (!completedContracts.find(c => c.id === contract.id) && !newlyCompleted.find(c => c.id === contract.id)) {
+                newlyCompleted.push(contract);
+                contractsThatBecameCompleteMessages.push({
+                    title: "Contract Complete",
+                    description: `Contract ${contract.contractNumber} moved to Log Book.`
+                });
+            } else if (completedContracts.find(c => c.id === contract.id)) {
+                 // It was already completed, but tasks within it might have been re-marked complete.
+                 // We'll keep it in completed, potentially updating its task states if it was in updatedActiveContracts
+                 if(!newlyCompleted.find(c => c.id === contract.id)) newlyCompleted.push(contract);
+            }
         } else {
             stillActive.push(contract);
         }
@@ -434,8 +433,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     
     setActiveContracts(stillActive.sort((a, b) => a.contractNumber.localeCompare(b.contractNumber)));
     setCompletedContracts(prevCompleted => 
-        [...prevCompleted, ...newlyCompleted]
-        .filter((c, index, self) => index === self.findIndex(t => t.id === c.id)) // Ensure uniqueness
+        [...prevCompleted.filter(pc => !newlyCompleted.find(nc => nc.id === pc.id)), ...newlyCompleted]
         .sort((a, b) => a.contractNumber.localeCompare(b.contractNumber))
     );
 
@@ -561,6 +559,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                  </p>
                )}
              </div>
+             <Separator orientation="vertical" className="h-6 mx-1 sm:mx-2" />
              <div className="flex items-center gap-1">
                 <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDecrementCrew} disabled={crewSize <= 1} aria-label="Decrease crew size">
@@ -740,4 +739,6 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     </div>
   );
 }
+    
+
     
