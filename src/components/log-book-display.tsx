@@ -3,7 +3,7 @@
 
 import type React from 'react';
 import type { ContractV2 } from '@/lib/types';
-import { DestinationTaskCard } from './destination-task-card'; // Re-use for display
+import { DestinationTaskCard } from './destination-task-card'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { BookOpen, FileText } from 'lucide-react';
@@ -49,15 +49,20 @@ export const LogBookDisplay: React.FC<LogBookDisplayProps> = ({
           {sortedContracts.map((contract) => {
             const completedTasks = contract.destinationTasks.filter(t => t.isComplete).length;
             const totalTasks = contract.destinationTasks.length;
+            const rewardFormatted = contract.reward.toLocaleString();
             return (
               <AccordionItem key={contract.id} value={contract.id} className="border bg-card/70 rounded-lg shadow-sm data-[state=open]:bg-card/80">
                 <AccordionTrigger className="p-4 hover:no-underline">
-                  <div className="flex items-center gap-3">
-                     <FileText className="h-5 w-5 text-green-500" />
-                    <span className="font-semibold text-lg">{contract.contractNumber}</span>
-                     <span className="text-sm text-muted-foreground">({contract.description || 'No description'})</span>
+                  <div className="flex flex-col items-start text-left flex-grow gap-1">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-green-500" />
+                      <span className="font-semibold text-lg">{contract.contractNumber}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground ml-8">
+                       Reward: {rewardFormatted} aUEC
+                    </div>
                   </div>
-                  <div className="text-sm text-green-400">
+                  <div className="text-sm text-green-400 ml-2 text-right flex-shrink-0">
                     {completedTasks}/{totalTasks} tasks delivered
                   </div>
                 </AccordionTrigger>
@@ -69,9 +74,9 @@ export const LogBookDisplay: React.FC<LogBookDisplayProps> = ({
                           key={task.id}
                           contractId={contract.id}
                           task={task}
-                          onUpdateGoodQuantity={() => { /* No-op for completed */ }}
-                          onRemoveGood={() => { /* No-op for completed */ }}
-                          onAddGoodToTask={() => { /* No-op for completed */ }}
+                          onUpdateGoodQuantity={() => { /* No-op: Read-only in log book */ }}
+                          onRemoveGood={() => { /* No-op: Read-only in log book */ }}
+                          onAddGoodToTask={() => { /* No-op: Read-only in log book */ }}
                           onToggleTaskStatus={onToggleTaskStatus} // Allow reopening
                         />
                       ))

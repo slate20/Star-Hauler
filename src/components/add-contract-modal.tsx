@@ -18,8 +18,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, XCircle, MapPin, FileText } from 'lucide-react';
-import { DestinationEntryFields } from './destination-entry-fields'; // This component handles goods for a destination
+import { Send, XCircle, MapPin, FileText, DollarSign } from 'lucide-react';
+import { DestinationEntryFields } from './destination-entry-fields';
 
 const goodItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -33,6 +33,7 @@ const destinationEntrySchema = z.object({
 
 const newContractFormSchema = z.object({
   contractNumber: z.string().min(1, "Contract Number/ID is required"),
+  rewardK: z.coerce.number().min(0, "Reward must be zero or a positive number"),
   destinationEntries: z.array(destinationEntrySchema).min(1, "At least one destination task is required"),
 });
 
@@ -48,7 +49,8 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
   const form = useForm<NewContractFormData>({
     resolver: zodResolver(newContractFormSchema),
     defaultValues: {
-      contractNumber: `CN-${Date.now().toString().slice(-6)}`, // Example default contract number
+      contractNumber: `CN-${Date.now().toString().slice(-6)}`,
+      rewardK: 0,
       destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
     },
   });
@@ -62,6 +64,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     if (!isOpen) {
       form.reset({
         contractNumber: `CN-${Date.now().toString().slice(-6)}`,
+        rewardK: 0,
         destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
       });
     }
@@ -69,11 +72,11 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
 
   const onSubmit = (data: NewContractFormData) => {
     onContractSubmit(data);
-    // Form reset is handled by useEffect watching `isOpen`
+    // onOpenChange(false); // This will trigger the useEffect for form reset via isOpen prop change
   };
 
   const handleCancel = () => {
-    onOpenChange(false); // This will trigger the useEffect for form reset
+    onOpenChange(false);
   };
   
   return (
@@ -93,22 +96,41 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
           >
             <ScrollArea className="flex-1 overflow-y-auto">
               <div className="space-y-6 p-4">
-                <FormField
-                  control={form.control}
-                  name="contractNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-lg">Contract Number/ID</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center">
-                          <FileText className="h-5 w-5 mr-2 text-muted-foreground" />
-                          <Input placeholder="e.g., CX-12345 or Client Name" {...field} className="text-base"/>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contractNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg">Contract Number/ID</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center">
+                            <FileText className="h-5 w-5 mr-2 text-muted-foreground" />
+                            <Input placeholder="e.g., CX-12345 or Client Name" {...field} className="text-base"/>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="rewardK"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-lg">Contract Reward (K aUEC)</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center">
+                            <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" />
+                            <Input type="number" placeholder="e.g., 50 for 50,000" {...field} className="text-base" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} min="0" />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
 
                 <FormLabel className="text-lg block pt-2">Destination Tasks:</FormLabel>
                 {destinationFields.map((destField, destIndex) => (
@@ -117,7 +139,6 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                     destIndex={destIndex}
                     removeDestination={removeDestination}
                     canRemoveDestination={destinationFields.length > 1}
-                    // Pass form control for nested field array
                   />
                 ))}
                 <Button

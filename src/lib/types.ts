@@ -16,6 +16,7 @@ export interface ContractV2 {
   id: string; // Unique ID for the overall contract
   contractNumber: string; // User-friendly identifier for the contract
   description?: string; // Optional overall contract description
+  reward: number; // Full reward value (e.g., 10000)
   destinationTasks: DestinationTask[];
 }
 
@@ -32,6 +33,7 @@ export interface ModalDestinationEntry { // Represents a task being built in the
 
 export interface NewContractFormData { // This is what onContractSubmit will receive from the modal
   contractNumber: string;
+  rewardK: number; // Reward in thousands (K)
   destinationEntries: ModalDestinationEntry[];
 }
 
