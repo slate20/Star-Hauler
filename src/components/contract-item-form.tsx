@@ -8,16 +8,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { addContractItemAction } from '@/lib/actions';
 import type { ContractItemData, ContractFormState } from '@/lib/types';
-import type { UEXLocation, UEXCommodity } from '@/lib/uexcorp-types';
+// Removed UEXLocation, UEXCommodity imports
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Removed Select components import
 import {
   Form,
   FormControl,
@@ -28,21 +22,20 @@ import {
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Rocket, Package, Warehouse, Send } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// Removed ScrollArea import
 
 const formSchema = z.object({
-  destination: z.string().min(1, "Please select a destination"),
-  productName: z.string().min(1, "Please select a product"),
+  destination: z.string().min(1, "Please enter a destination"),
+  productName: z.string().min(1, "Please enter a product name"),
   quantity: z.coerce.number().positive("Quantity must be a positive number").int("Quantity must be a whole number"),
 });
 
 type ContractItemFormProps = {
   onItemAdded: (newItem: ContractItemData) => void;
-  destinations: UEXLocation[];
-  commodities: UEXCommodity[];
+  // Removed destinations and commodities from props
 };
 
-export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded, destinations, commodities }) => {
+export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded }) => {
   const { toast } = useToast();
   const [state, formAction, isPending] = useActionState<ContractFormState, FormData>(addContractItemAction, null);
 
@@ -51,17 +44,16 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded,
     defaultValues: {
       destination: "",
       productName: "",
-      quantity: '',
+      quantity: '', // Kept as empty string for UI consistency with number input
     },
   });
 
   useEffect(() => {
     if (state?.success && state.item) {
       form.reset(); 
-      // Reset to actual empty strings which Select needs to show placeholder
       form.setValue('destination', '');
       form.setValue('productName', '');
-      form.setValue('quantity', '' as unknown as number); // Keep quantity as empty string for UI
+      form.setValue('quantity', '' as unknown as number);
       onItemAdded(state.item);
       toast({
         title: "Contract Item Processed!",
@@ -96,22 +88,9 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded,
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Rocket className="mr-2 h-4 w-4 text-accent" />Destination</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value || ""} defaultValue="">
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a destination" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <ScrollArea className="h-[200px]">
-                    {destinations.map((dest) => (
-                      <SelectItem key={dest.uuid} value={dest.name}>
-                        {dest.name} ({dest.celestial_body.name})
-                      </SelectItem>
-                    ))}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Input type="text" placeholder="e.g., Port Olisar" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -122,22 +101,9 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded,
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-accent" />Product Name</FormLabel>
-               <Select onValueChange={field.onChange} value={field.value || ""} defaultValue="">
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <ScrollArea className="h-[200px]">
-                    {commodities.map((com) => (
-                      <SelectItem key={com.uuid} value={com.name}>
-                        {com.name}
-                      </SelectItem>
-                    ))}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Input type="text" placeholder="e.g., Laranite" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -166,3 +132,5 @@ export const ContractItemForm: React.FC<ContractItemFormProps> = ({ onItemAdded,
     </Form>
   );
 };
+
+    

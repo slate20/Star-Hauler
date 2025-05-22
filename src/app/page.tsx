@@ -6,8 +6,8 @@ import { ContractItemForm } from '@/components/contract-item-form';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
 import type { Contract, Good, ContractItemData } from '@/lib/types';
-import type { UEXLocation, UEXCommodity } from '@/lib/uexcorp-types';
-import { fetchDestinationsAction, fetchCommoditiesAction } from '@/lib/server-actions/uexcorp-actions';
+// Removed UEXLocation, UEXCommodity imports
+// Removed fetchDestinationsAction, fetchCommoditiesAction imports
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
@@ -18,38 +18,11 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
   const { toast } = useToast();
 
-  const [apiDestinations, setApiDestinations] = useState<UEXLocation[]>([]);
-  const [apiCommodities, setApiCommodities] = useState<UEXCommodity[]>([]);
-  const [isLoadingApiData, setIsLoadingApiData] = useState(true);
+  // Removed apiDestinations, apiCommodities, isLoadingApiData states
 
   useEffect(() => {
     setIsClient(true);
-    async function loadApiData() {
-      setIsLoadingApiData(true);
-      try {
-        const [destinations, commodities] = await Promise.all([
-          fetchDestinationsAction(),
-          fetchCommoditiesAction()
-        ]);
-        setApiDestinations(destinations);
-        setApiCommodities(commodities);
-
-        if (destinations.length === 0 && commodities.length === 0) {
-          toast({ variant: "default", title: "API Data Notice", description: "Fetched data for destinations and commodities is empty. The API might not have data or there could be an issue. Check server logs for details." });
-        } else if (destinations.length === 0) {
-          toast({ variant: "default", title: "Destinations Empty", description: "Fetched data for destinations is empty. Check server logs." });
-        } else if (commodities.length === 0) {
-          toast({ variant: "default", title: "Commodities Empty", description: "Fetched data for commodities is empty. Check server logs." });
-        }
-
-      } catch (error) {
-        console.error("Failed to load API data from Page:", error);
-        toast({ variant: "destructive", title: "API Call Error", description: "Could not load destinations or commodities. See browser console for details." });
-      } finally {
-        setIsLoadingApiData(false);
-      }
-    }
-    loadApiData();
+    // Removed loadApiData function and its call
   }, [toast]);
 
   const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
@@ -103,12 +76,13 @@ export default function HomePage() {
               .map(good =>
                 good.id === goodId ? { ...good, quantity: newQuantity } : good
               )
-              .filter(good => good.quantity > 0);
+              .filter(good => good.quantity > 0); // Remove good if quantity is 0 or less
+            // If all goods are removed, this contract itself might be filtered out later
             return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0)
+        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
     );
     toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
   }, [toast]);
@@ -123,7 +97,7 @@ export default function HomePage() {
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0)
+        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods left
     );
     toast({ title: "Good Removed", description: "The good has been removed from the contract." });
   }, [toast]);
@@ -139,10 +113,12 @@ export default function HomePage() {
           const existingGoodIndex = contract.goods.findIndex(g => g.productName === goodData.productName);
           let updatedGoods;
           if (existingGoodIndex > -1) {
+            // Good already exists, update its quantity
             updatedGoods = contract.goods.map((g, index) =>
               index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
             );
           } else {
+            // Good does not exist, add it
             const newGood: Good = {
               id: crypto.randomUUID(),
               productName: goodData.productName,
@@ -182,23 +158,14 @@ export default function HomePage() {
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
                 <CardTitle className="text-2xl">Add Contract Item</CardTitle>
-                <CardDescription>Select destination, product, and quantity.</CardDescription>
+                <CardDescription>Enter destination, product, and quantity.</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoadingApiData ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                ) : (
-                  <ContractItemForm 
-                    onItemAdded={handleContractItemAdded} 
-                    destinations={apiDestinations}
-                    commodities={apiCommodities}
-                  />
-                )}
+                {/* Removed isLoadingApiData check and Skeleton */}
+                <ContractItemForm 
+                  onItemAdded={handleContractItemAdded}
+                  // Removed destinations and commodities props
+                />
               </CardContent>
             </Card>
           </div>
@@ -209,8 +176,7 @@ export default function HomePage() {
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
-              commodities={apiCommodities} 
-              isLoadingCommodities={isLoadingApiData}
+              // Removed commodities and isLoadingCommodities props
             />
             <QuantityTotalsDisplay contracts={contracts} />
           </div>
@@ -218,8 +184,10 @@ export default function HomePage() {
       </main>
       
       <footer className="text-center p-6 text-muted-foreground text-sm border-t border-border mt-12">
-        Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts. Data from uexcorp.space.
+        Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts.
       </footer>
     </div>
   );
 }
+
+    

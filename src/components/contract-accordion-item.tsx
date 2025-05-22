@@ -3,31 +3,23 @@
 
 import React, { useState } from 'react';
 import type { Contract } from '@/lib/types';
-import type { UEXCommodity } from '@/lib/uexcorp-types';
+// Removed UEXCommodity import
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// Removed Select components import
 import { Rocket, Package, Warehouse, Plus, Minus, Trash2, Check, X, PlusSquare, ChevronDown } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
-
+// Removed ScrollArea import
+// Removed Skeleton import
 
 type ContractAccordionItemProps = {
   contract: Contract;
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
-  commodities: UEXCommodity[];
-  isLoadingCommodities: boolean;
+  // Removed commodities and isLoadingCommodities props
 };
 
 export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({ 
@@ -35,8 +27,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
   onUpdateGoodQuantity, 
   onRemoveGood, 
   onAddGoodToContract,
-  commodities,
-  isLoadingCommodities
+  // Removed commodities, isLoadingCommodities from destructuring
 }) => {
   const [isAddingGood, setIsAddingGood] = useState(false);
   const [newGoodName, setNewGoodName] = useState("");
@@ -50,7 +41,6 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
       setNewGoodQuantity("");
       setIsAddingGood(false);
     } else {
-      // Consider using toast for better UX
       alert("Product name cannot be empty and quantity must be a positive number.");
     }
   };
@@ -117,24 +107,14 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
           <CardFooter className="flex flex-col items-stretch p-4">
             {isAddingGood ? (
               <div className="space-y-3">
-                {isLoadingCommodities ? (
-                  <Skeleton className="h-9 w-full" />
-                ) : (
-                  <Select onValueChange={setNewGoodName} value={newGoodName}>
-                    <SelectTrigger onClick={(e) => e.stopPropagation()} className="h-9">
-                      <SelectValue placeholder="Select a product to add" />
-                    </SelectTrigger>
-                    <SelectContent onClick={(e) => e.stopPropagation()}>
-                       <ScrollArea className="h-[150px]">
-                        {commodities.map((com) => (
-                          <SelectItem key={com.uuid} value={com.name} onClick={(e) => e.stopPropagation()}>
-                            {com.name}
-                          </SelectItem>
-                        ))}
-                      </ScrollArea>
-                    </SelectContent>
-                  </Select>
-                )}
+                <Input
+                  type="text"
+                  placeholder="Product Name"
+                  value={newGoodName}
+                  onChange={(e) => setNewGoodName(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-9"
+                />
                 <Input
                   type="number"
                   placeholder="Quantity"
@@ -164,3 +144,5 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
     </AccordionItem>
   );
 };
+
+    

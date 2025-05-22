@@ -3,19 +3,18 @@
 
 import type React from 'react';
 import type { Contract } from '@/lib/types';
-import type { UEXCommodity } from '@/lib/uexcorp-types';
+// Removed UEXCommodity import
 import { ContractAccordionItem } from './contract-accordion-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion } from '@/components/ui/accordion';
-import { Skeleton } from '@/components/ui/skeleton';
+// Removed Skeleton import as loading state is removed
 
 type ActiveContractsDisplayProps = {
   contracts: Contract[];
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
-  commodities: UEXCommodity[];
-  isLoadingCommodities: boolean;
+  // Removed commodities and isLoadingCommodities props
 };
 
 export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
@@ -23,23 +22,9 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
   onUpdateGoodQuantity, 
   onRemoveGood, 
   onAddGoodToContract,
-  commodities,
-  isLoadingCommodities
+  // Removed commodities, isLoadingCommodities from destructuring
 }) => {
-  if (isLoadingCommodities && contracts.length === 0) {
-    return (
-      <Card className="shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-xl">Active Contracts</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </CardContent>
-      </Card>
-    );
-  }
+  // Removed isLoadingCommodities check and Skeleton rendering
   
   if (!contracts || contracts.length === 0) {
     return (
@@ -72,8 +57,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
               onUpdateGoodQuantity={onUpdateGoodQuantity}
               onRemoveGood={onRemoveGood}
               onAddGoodToContract={onAddGoodToContract}
-              commodities={commodities}
-              isLoadingCommodities={isLoadingCommodities}
+              // Removed commodities and isLoadingCommodities props
             />
           ))}
         </Accordion>
@@ -81,3 +65,5 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     </Card>
   );
 };
+
+    
