@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { NewContractFormData, ModalDestinationEntry } from '@/lib/types';
+import type { NewContractFormData } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -39,6 +39,8 @@ type AddContractModalProps = {
   onOpenChange: (isOpen: boolean) => void;
   onContractSubmit: (data: NewContractFormData) => void;
 };
+
+const ADD_CONTRACT_FORM_ID = "addContractForm";
 
 export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOpenChange, onContractSubmit }) => {
   const form = useForm<NewContractFormData>({
@@ -79,8 +81,8 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <ScrollArea className="flex-1"> {/* Removed pr-6 -mr-2 */}
+          <form id={ADD_CONTRACT_FORM_ID} onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <ScrollArea className="flex-1">
               <div className="space-y-6 p-4">
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
@@ -111,16 +113,17 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                   )}
               </div>
             </ScrollArea>
-            <DialogFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={handleCancel}>
-                 <XCircle className="mr-2 h-4 w-4" /> Cancel
-              </Button>
-              <Button type="submit">
-                <Send className="mr-2 h-4 w-4" /> Submit All Contracts
-              </Button>
-            </DialogFooter>
+            {/* DialogFooter moved out of the form */}
           </form>
         </Form>
+        <DialogFooter className="pt-4 border-t mt-auto"> {/* Added mt-auto to push to bottom if space allows, border-t for separation */}
+          <Button type="button" variant="outline" onClick={handleCancel}>
+             <XCircle className="mr-2 h-4 w-4" /> Cancel
+          </Button>
+          <Button type="submit" form={ADD_CONTRACT_FORM_ID}>
+            <Send className="mr-2 h-4 w-4" /> Submit All Contracts
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
