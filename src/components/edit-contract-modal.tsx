@@ -17,11 +17,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Save, XCircle, FileText, DollarSign } from 'lucide-react';
 
 const editContractFormSchema = z.object({
-  id: z.string(), // Not directly edited by user but needed for submission
+  id: z.string(), 
   contractNumber: z.string().min(1, "Contract Number/ID is required"),
   rewardK: z.coerce.number().min(0, "Reward must be zero or a positive number"),
 });
@@ -46,7 +45,7 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
     defaultValues: {
       id: "",
       contractNumber: "",
-      rewardK: 0,
+      rewardK: '', // Default to empty string
     },
   });
 
@@ -55,20 +54,19 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
       form.reset({
         id: contractToEdit.id,
         contractNumber: contractToEdit.contractNumber,
-        rewardK: contractToEdit.reward / 1000, // Convert back to K for display
+        rewardK: contractToEdit.reward / 1000,
       });
     } else if (!isOpen) {
-        form.reset({ // Reset to defaults when modal is closed
+        form.reset({ 
             id: "",
             contractNumber: "",
-            rewardK: 0,
+            rewardK: '', // Reset to empty string
         });
     }
   }, [contractToEdit, isOpen, form]);
 
   const onSubmit = (data: EditContractFormData) => {
     onContractUpdate(data);
-    // onOpenChange(false); // Let parent handle closing if needed, or rely on useEffect for reset
   };
 
   const handleCancel = () => {
@@ -116,14 +114,20 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
                       <FormControl>
                         <div className="flex items-center">
                           <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" />
-                          <Input type="number" placeholder="e.g., 50 for 50,000" {...field} className="text-base" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} min="0" />
+                          <Input 
+                            type="number" 
+                            placeholder="e.g., 50 for 50,000" 
+                            {...field} 
+                            className="text-base" 
+                            onChange={e => field.onChange(e.target.value)} // Pass raw value
+                            min="0" 
+                          />
                         </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {/* Hidden field for ID, not typically needed if not part of form display but included for completeness in schema */}
                 <FormField
                     control={form.control}
                     name="id"
@@ -144,4 +148,3 @@ export const EditContractModal: React.FC<EditContractModalProps> = ({
     </Dialog>
   );
 };
-

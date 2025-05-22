@@ -50,7 +50,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     resolver: zodResolver(newContractFormSchema),
     defaultValues: {
       contractNumber: `CN-${Date.now().toString().slice(-6)}`,
-      rewardK: 0,
+      rewardK: '', // Default to empty string to show placeholder
       destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
     },
   });
@@ -64,7 +64,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     if (!isOpen) {
       form.reset({
         contractNumber: `CN-${Date.now().toString().slice(-6)}`,
-        rewardK: 0,
+        rewardK: '', // Reset to empty string
         destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
       });
     }
@@ -126,7 +126,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                               placeholder="e.g., 50 for 50,000" 
                               {...field} 
                               className="text-base" 
-                              onChange={e => field.onChange(e.target.value)} 
+                              onChange={e => field.onChange(e.target.value)} // Pass raw value
                               min="0" 
                             />
                           </div>
