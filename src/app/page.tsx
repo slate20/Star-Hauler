@@ -162,13 +162,13 @@ export default function HomePage() {
           </div>
 
           <div className="lg:col-span-5 space-y-8">
-            <QuantityTotalsDisplay contracts={contracts} />
             <ActiveContractsDisplay 
               contracts={contracts} 
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
             />
+            <QuantityTotalsDisplay contracts={contracts} />
           </div>
         </div>
       </main>
