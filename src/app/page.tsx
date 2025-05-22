@@ -8,15 +8,27 @@ import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
 import type { Contract, Good, ContractItemData } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useToast } from "@/hooks/use-toast";
 
 export default function HomePage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
+    setIsClient(true);
     // In a real app, this might be fetched from localStorage or an API
     // For now, we start with an empty list of contracts.
-    setIsClient(true); 
+    // Example initial data for testing:
+    // setContracts([
+    //   { id: crypto.randomUUID(), destination: "Mars Colony", goods: [
+    //     { id: crypto.randomUUID(), productName: "Water Ice", quantity: 100 },
+    //     { id: crypto.randomUUID(), productName: "Solar Panels", quantity: 20 },
+    //   ]},
+    //   { id: crypto.randomUUID(), destination: "Titan Orbital", goods: [
+    //     { id: crypto.randomUUID(), productName: "Methane Fuel", quantity: 500 },
+    //   ]},
+    // ]);
   }, []);
 
   const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
@@ -25,21 +37,18 @@ export default function HomePage() {
       let updatedContracts = [...prevContracts];
 
       if (existingContractIndex > -1) {
-        // Destination exists, update or add good
         const contractToUpdate = { ...updatedContracts[existingContractIndex] };
         const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName === newItem.productName);
 
         if (existingGoodIndex > -1) {
-          // Product exists, update quantity (summing them up)
           const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
-          goodToUpdate.quantity += newItem.quantity;
+          goodToUpdate.quantity += newItem.quantity; // Sum quantities
           contractToUpdate.goods = [
             ...contractToUpdate.goods.slice(0, existingGoodIndex),
             goodToUpdate,
             ...contractToUpdate.goods.slice(existingGoodIndex + 1),
           ];
         } else {
-          // Product does not exist, add new good
           const newGood: Good = {
             id: crypto.randomUUID(),
             productName: newItem.productName,
@@ -49,7 +58,6 @@ export default function HomePage() {
         }
         updatedContracts[existingContractIndex] = contractToUpdate;
       } else {
-        // Destination does not exist, create new contract
         const newContract: Contract = {
           id: crypto.randomUUID(),
           destination: newItem.destination,
@@ -61,9 +69,76 @@ export default function HomePage() {
         };
         updatedContracts = [...updatedContracts, newContract];
       }
-      return updatedContracts;
+      return updatedContracts.sort((a,b) => a.destination.localeCompare(b.destination));
     });
-  }, []); // setContracts is stable
+  }, []);
+
+  const handleUpdateGoodQuantity = useCallback((contractId: string, goodId: string, newQuantity: number) => {
+    setContracts(prevContracts =>
+      prevContracts
+        .map(contract => {
+          if (contract.id === contractId) {
+            const updatedGoods = contract.goods
+              .map(good =>
+                good.id === goodId ? { ...good, quantity: newQuantity } : good
+              )
+              .filter(good => good.quantity > 0); // Remove good if quantity is 0 or less
+            return { ...contract, goods: updatedGoods };
+          }
+          return contract;
+        })
+        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
+    );
+    toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
+  }, [toast]);
+
+  const handleRemoveGood = useCallback((contractId: string, goodId: string) => {
+    setContracts(prevContracts =>
+      prevContracts
+        .map(contract => {
+          if (contract.id === contractId) {
+            const updatedGoods = contract.goods.filter(good => good.id !== goodId);
+            return { ...contract, goods: updatedGoods };
+          }
+          return contract;
+        })
+        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
+    );
+    toast({ title: "Good Removed", description: "The good has been removed from the contract." });
+  }, [toast]);
+
+  const handleAddGoodToContract = useCallback((contractId: string, goodData: { productName: string; quantity: number }) => {
+    if (!goodData.productName.trim() || goodData.quantity <= 0) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "Product name cannot be empty and quantity must be positive." });
+      return;
+    }
+    setContracts(prevContracts =>
+      prevContracts.map(contract => {
+        if (contract.id === contractId) {
+          const existingGoodIndex = contract.goods.findIndex(g => g.productName === goodData.productName);
+          let updatedGoods;
+          if (existingGoodIndex > -1) {
+            // Good already exists, update quantity
+            updatedGoods = contract.goods.map((g, index) =>
+              index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
+            );
+          } else {
+            // Add new good
+            const newGood: Good = {
+              id: crypto.randomUUID(),
+              productName: goodData.productName,
+              quantity: goodData.quantity,
+            };
+            updatedGoods = [...contract.goods, newGood];
+          }
+          return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
+        }
+        return contract;
+      })
+    );
+    toast({ title: "Good Added", description: `${goodData.productName} added to ${contracts.find(c=>c.id === contractId)?.destination}.` });
+  }, [contracts, toast]);
+
 
   if (!isClient) {
     return (
@@ -98,7 +173,12 @@ export default function HomePage() {
 
           <div className="lg:col-span-5 space-y-8">
             <QuantityTotalsDisplay contracts={contracts} />
-            <ActiveContractsDisplay contracts={contracts} />
+            <ActiveContractsDisplay 
+              contracts={contracts} 
+              onUpdateGoodQuantity={handleUpdateGoodQuantity}
+              onRemoveGood={handleRemoveGood}
+              onAddGoodToContract={handleAddGoodToContract}
+            />
           </div>
         </div>
       </main>

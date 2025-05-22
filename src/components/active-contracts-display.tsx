@@ -2,31 +2,23 @@
 "use client";
 
 import type React from 'react';
-// import { useState, useMemo } from 'react'; // Sorting might be added later
 import type { Contract } from '@/lib/types';
 import { DestinationCard } from './destination-card';
-// import { Button } from '@/components/ui/button';
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// import { ArrowUpDown, CalendarDays, Package, Rocket } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type ActiveContractsDisplayProps = {
   contracts: Contract[];
-  // Callbacks for updates will be added later
+  onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
+  onRemoveGood: (contractId: string, goodId: string) => void;
+  onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
 };
 
-export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ contracts }) => {
-  // Sorting logic can be reintroduced later if needed
-  // const [sortConfig, setSortConfig] = useState<{ key: keyof Contract | 'goodsCount'; direction: 'ascending' | 'descending' }>({
-  //   key: 'destination', // Default sort, or maybe by last update?
-  //   direction: 'ascending',
-  // });
-
-  // const sortedContracts = useMemo(() => {
-  //   // Sorting logic here
-  //   return contracts;
-  // }, [contracts, sortConfig]);
-
+export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
+  contracts, 
+  onUpdateGoodQuantity, 
+  onRemoveGood, 
+  onAddGoodToContract 
+}) => {
   if (!contracts || contracts.length === 0) {
     return (
       <Card className="shadow-xl">
@@ -40,18 +32,27 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
     );
   }
 
+  // Sort contracts by destination name for consistent display
+  const sortedContracts = [...contracts].sort((a, b) => a.destination.localeCompare(b.destination));
+
+
   return (
     <Card className="shadow-xl">
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle className="text-xl">Active Contracts ({contracts.length} destinations)</CardTitle>
-          {/* Sorting UI can be added here later */}
+          <CardTitle className="text-xl">Active Contracts ({sortedContracts.length} destinations)</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {contracts.map((contract) => (
-            <DestinationCard key={contract.id} contract={contract} />
+          {sortedContracts.map((contract) => (
+            <DestinationCard 
+              key={contract.id} 
+              contract={contract}
+              onUpdateGoodQuantity={onUpdateGoodQuantity}
+              onRemoveGood={onRemoveGood}
+              onAddGoodToContract={onAddGoodToContract}
+            />
           ))}
         </div>
       </CardContent>
