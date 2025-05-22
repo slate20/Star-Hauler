@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
-import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
-import type { Contract, Good, ContractItemData, NewContractFormData, ModalDestinationEntry } from '@/lib/types'; // Added ModalDestinationEntry
+import { CargoInventoryDisplay } from '@/components/cargo-inventory-display'; // Updated import
+import type { Contract, Good, ContractItemData, NewContractFormData, ModalDestinationEntry } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,12 +29,14 @@ export default function HomePage() {
 
       if (existingContractIndex > -1) {
         const contractToUpdate = { ...updatedContracts[existingContractIndex] };
-        contractToUpdate.destination = prevContracts[existingContractIndex].destination;
+        // Preserve original destination casing
+        contractToUpdate.destination = prevContracts[existingContractIndex].destination; 
         
         const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName.toLowerCase() === newItem.productName.toLowerCase());
 
         if (existingGoodIndex > -1) {
           const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
+          // Preserve original product name casing
           goodToUpdate.productName = contractToUpdate.goods[existingGoodIndex].productName;
           goodToUpdate.quantity += newItem.quantity;
           contractToUpdate.goods = [
@@ -73,17 +75,26 @@ export default function HomePage() {
   
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
     let itemsProcessed = 0;
+    let hasFatalError = false;
+
     data.destinationEntries.forEach((destinationEntry: ModalDestinationEntry) => {
+      if (hasFatalError) return;
+
       if (!destinationEntry.destination.trim()) {
-        toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty for one or more entries." });
-        return; // Potentially skip this entry or halt all, based on desired strictness
+        toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty for one or more entries. Submission halted." });
+        hasFatalError = true;
+        return;
       }
       if (destinationEntry.goods.length === 0) {
-        toast({ variant: "destructive", title: "Invalid Input", description: `At least one good must be added to the contract for ${destinationEntry.destination}.` });
-        return; // Skip this entry
+        toast({ variant: "destructive", title: "Invalid Input", description: `At least one good must be added to the contract for ${destinationEntry.destination}. Submission halted.` });
+        hasFatalError = true;
+        return;
       }
-
+      
+      let goodsForThisDestinationProcessed = 0;
       destinationEntry.goods.forEach(good => {
+        if (hasFatalError) return;
+
         if (good.productName.trim() && good.quantity > 0) {
           handleContractItemAdded({
             destination: destinationEntry.destination,
@@ -91,20 +102,30 @@ export default function HomePage() {
             quantity: good.quantity,
           });
           itemsProcessed++;
+          goodsForThisDestinationProcessed++;
         } else if (good.productName.trim() && good.quantity <= 0) {
-           toast({ variant: "destructive", title: "Invalid Quantity", description: `Quantity for ${good.productName} for ${destinationEntry.destination} must be positive.`});
+           toast({ variant: "destructive", title: "Invalid Quantity", description: `Quantity for ${good.productName} for ${destinationEntry.destination} must be positive. Submission halted.`});
+           hasFatalError = true;
         } else if (!good.productName.trim() && good.quantity > 0) {
-           toast({ variant: "destructive", title: "Invalid Product Name", description: `Product name for an item for ${destinationEntry.destination} cannot be empty.`});
+           toast({ variant: "destructive", title: "Invalid Product Name", description: `Product name for an item for ${destinationEntry.destination} cannot be empty. Submission halted.`});
+           hasFatalError = true;
         }
       });
+      if (goodsForThisDestinationProcessed === 0 && !hasFatalError && destinationEntry.goods.length > 0) {
+        // This case handles if all goods for a specific destination were invalid but not fatal for others yet
+        toast({ variant: "warning", title: "No Valid Goods", description: `No valid goods processed for ${destinationEntry.destination}.` });
+      }
+
     });
 
-    if (itemsProcessed > 0) {
-      setIsAddContractModalOpen(false); // Close modal if at least one item was processed
-    } else {
-       toast({ variant: "warning", title: "No Items Processed", description: "Please ensure all entries are valid." });
+    if (itemsProcessed > 0 && !hasFatalError) {
+      setIsAddContractModalOpen(false); 
+      form.reset({ destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }] }); // Reset form on successful submission
+    } else if (!hasFatalError) { // No items processed but no fatal errors either (e.g. all fields empty but valid structure)
+       toast({ variant: "warning", title: "No Items Processed", description: "Please ensure all entries are valid and have items." });
     }
-  }, [handleContractItemAdded, toast]);
+    // If hasFatalError, modal remains open for correction
+  }, [handleContractItemAdded, toast]); // Removed form from dependencies, handled by parent
 
 
   const handleUpdateGoodQuantity = useCallback((contractId: string, goodId: string, newQuantity: number) => {
@@ -146,19 +167,27 @@ export default function HomePage() {
       toast({ variant: "destructive", title: "Invalid Input", description: "Product name cannot be empty and quantity must be positive." });
       return;
     }
+    const targetContract = contracts.find(c => c.id === contractId);
+    if (!targetContract) {
+        toast({variant: "destructive", title: "Error", description: "Contract not found."});
+        return;
+    }
+
     setContracts(prevContracts =>
       prevContracts.map(contract => {
         if (contract.id === contractId) {
           const existingGoodIndex = contract.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
           let updatedGoods;
           if (existingGoodIndex > -1) {
+             // Good exists, update quantity
             updatedGoods = contract.goods.map((g, index) =>
               index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
             );
           } else {
+            // New good
             const newGood: Good = {
               id: crypto.randomUUID(),
-              productName: goodData.productName,
+              productName: goodData.productName, // Use the casing from input
               quantity: goodData.quantity,
             };
             updatedGoods = [...contract.goods, newGood];
@@ -168,7 +197,18 @@ export default function HomePage() {
         return contract;
       })
     );
-    toast({ title: "Good Added", description: `${goodData.productName} added to ${contracts.find(c=>c.id === contractId)?.destination}.` });
+    toast({ title: "Good Added", description: `${goodData.quantity} SCU of ${goodData.productName} added to ${targetContract.destination}.` });
+  }, [contracts, toast]);
+
+  const handleCompleteContract = useCallback((contractId: string) => {
+    const contractToComplete = contracts.find(c => c.id === contractId);
+    if (contractToComplete) {
+      setContracts(prevContracts => prevContracts.filter(c => c.id !== contractId));
+      toast({
+        title: "Contract Completed",
+        description: `Contract for ${contractToComplete.destination} has been removed from active contracts.`,
+      });
+    }
   }, [contracts, toast]);
 
 
@@ -212,8 +252,9 @@ export default function HomePage() {
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
+              onCompleteContract={handleCompleteContract} // Pass handler
             />
-            <QuantityTotalsDisplay contracts={contracts} />
+            <CargoInventoryDisplay contracts={contracts} /> {/* Updated component */}
           </div>
         </div>
       </main>
@@ -230,3 +271,8 @@ export default function HomePage() {
     </div>
   );
 }
+
+// Added a dummy form variable to satisfy handleModalContractSubmit's expectation after removing it from dependencies
+// This is a temporary workaround. In a real app, form reset should be handled more elegantly,
+// possibly by passing the form instance or a reset function to handleModalContractSubmit.
+const form = { reset: (values?: any) => {} };

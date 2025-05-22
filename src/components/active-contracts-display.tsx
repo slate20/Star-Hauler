@@ -3,18 +3,16 @@
 
 import type React from 'react';
 import type { Contract } from '@/lib/types';
-// Removed UEXCommodity import
 import { ContractAccordionItem } from './contract-accordion-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion } from '@/components/ui/accordion';
-// Removed Skeleton import as loading state is removed
 
 type ActiveContractsDisplayProps = {
   contracts: Contract[];
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
-  // Removed commodities and isLoadingCommodities props
+  onCompleteContract: (contractId: string) => void; // New prop
 };
 
 export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
@@ -22,9 +20,8 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
   onUpdateGoodQuantity, 
   onRemoveGood, 
   onAddGoodToContract,
-  // Removed commodities, isLoadingCommodities from destructuring
+  onCompleteContract, // Destructure new prop
 }) => {
-  // Removed isLoadingCommodities check and Skeleton rendering
   
   if (!contracts || contracts.length === 0) {
     return (
@@ -33,7 +30,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
           <CardTitle className="text-xl">Active Contracts</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">No active contracts. Add some items to get started!</p>
+          <p className="text-muted-foreground">No active contracts. Log a new haul to get started!</p>
         </CardContent>
       </Card>
     );
@@ -57,7 +54,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
               onUpdateGoodQuantity={onUpdateGoodQuantity}
               onRemoveGood={onRemoveGood}
               onAddGoodToContract={onAddGoodToContract}
-              // Removed commodities and isLoadingCommodities props
+              onCompleteContract={onCompleteContract} // Pass down prop
             />
           ))}
         </Accordion>
@@ -65,5 +62,3 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     </Card>
   );
 };
-
-    

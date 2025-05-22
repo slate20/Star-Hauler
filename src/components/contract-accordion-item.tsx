@@ -3,23 +3,19 @@
 
 import React, { useState } from 'react';
 import type { Contract } from '@/lib/types';
-// Removed UEXCommodity import
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-// Removed Select components import
-import { Rocket, Package, Warehouse, Plus, Minus, Trash2, Check, X, PlusSquare, ChevronDown } from 'lucide-react';
+import { Rocket, Package, Warehouse, Plus, Minus, Trash2, Check, X, PlusSquare, ChevronDown, PackageCheck } from 'lucide-react'; // Added PackageCheck
 import { Separator } from '@/components/ui/separator';
-// Removed ScrollArea import
-// Removed Skeleton import
 
 type ContractAccordionItemProps = {
   contract: Contract;
   onUpdateGoodQuantity: (contractId: string, goodId: string, newQuantity: number) => void;
   onRemoveGood: (contractId: string, goodId: string) => void;
   onAddGoodToContract: (contractId: string, goodData: { productName: string; quantity: number }) => void;
-  // Removed commodities and isLoadingCommodities props
+  onCompleteContract: (contractId: string) => void; // New prop
 };
 
 export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({ 
@@ -27,7 +23,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
   onUpdateGoodQuantity, 
   onRemoveGood, 
   onAddGoodToContract,
-  // Removed commodities, isLoadingCommodities from destructuring
+  onCompleteContract, // Destructure new prop
 }) => {
   const [isAddingGood, setIsAddingGood] = useState(false);
   const [newGoodName, setNewGoodName] = useState("");
@@ -41,6 +37,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
       setNewGoodQuantity("");
       setIsAddingGood(false);
     } else {
+      // Consider using toast for better UX here
       alert("Product name cannot be empty and quantity must be a positive number.");
     }
   };
@@ -76,7 +73,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
                       size="icon"
                       className="h-7 w-7"
                       onClick={(e) => { e.stopPropagation(); onUpdateGoodQuantity(contract.id, good.id, good.quantity - 1);}}
-                      disabled={good.quantity <= 0}
+                      disabled={good.quantity <= 0} // Keep quantity > 0; parent handles removal if it hits 0
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
@@ -104,7 +101,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
             )}
           </CardContent>
           <Separator className="my-2" />
-          <CardFooter className="flex flex-col items-stretch p-4">
+          <CardFooter className="flex flex-col items-stretch p-4 space-y-3">
             {isAddingGood ? (
               <div className="space-y-3">
                 <Input
@@ -112,7 +109,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
                   placeholder="Product Name"
                   value={newGoodName}
                   onChange={(e) => setNewGoodName(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
                   className="h-9"
                 />
                 <Input
@@ -120,7 +117,7 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
                   placeholder="Quantity"
                   value={newGoodQuantity}
                   onChange={(e) => setNewGoodQuantity(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
                   min="1"
                   className="h-9"
                 />
@@ -138,11 +135,17 @@ export const ContractAccordionItem: React.FC<ContractAccordionItemProps> = ({
                 <PlusSquare className="mr-2 h-4 w-4" /> Add New Good to {contract.destination}
               </Button>
             )}
+             <Separator className="my-1" />
+            <Button 
+              variant="default" 
+              onClick={(e) => { e.stopPropagation(); onCompleteContract(contract.id); }} 
+              className="w-full bg-green-600 hover:bg-green-700 text-white" // Example styling
+            >
+              <PackageCheck className="mr-2 h-4 w-4" /> Mark Contract as Delivered
+            </Button>
           </CardFooter>
         </AccordionContent>
       </Card>
     </AccordionItem>
   );
 };
-
-    
