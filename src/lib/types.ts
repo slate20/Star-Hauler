@@ -24,20 +24,11 @@ export interface ModalGoodItem {
   quantity: number;
 }
 
-export interface NewContractFormData {
+export interface ModalDestinationEntry {
   destination: string;
   goods: ModalGoodItem[];
 }
 
-// State for the old form action (will be removed)
-// export type ContractFormState = {
-//   message?: string;
-//   errors?: {
-//     destination?: string[];
-//     productName?: string[];
-//     quantity?: string[];
-//     _form?: string[];
-//   };
-//   success: boolean;
-//   item?: ContractItemData; // The item that was processed
-// } | null;
+export interface NewContractFormData { // This is what onContractSubmit will receive from the modal
+  destinationEntries: ModalDestinationEntry[];
+}

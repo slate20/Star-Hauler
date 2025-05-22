@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
-import type { Contract, Good, ContractItemData, NewContractFormData } from '@/lib/types';
+import type { Contract, Good, ContractItemData, NewContractFormData, ModalDestinationEntry } from '@/lib/types'; // Added ModalDestinationEntry
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,14 +29,12 @@ export default function HomePage() {
 
       if (existingContractIndex > -1) {
         const contractToUpdate = { ...updatedContracts[existingContractIndex] };
-        // Ensure destination casing is preserved from the first entry
         contractToUpdate.destination = prevContracts[existingContractIndex].destination;
         
         const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName.toLowerCase() === newItem.productName.toLowerCase());
 
         if (existingGoodIndex > -1) {
           const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
-          // Preserve productName casing from first entry
           goodToUpdate.productName = contractToUpdate.goods[existingGoodIndex].productName;
           goodToUpdate.quantity += newItem.quantity;
           contractToUpdate.goods = [
@@ -74,25 +72,38 @@ export default function HomePage() {
   }, [toast]);
   
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
-    if (!data.destination.trim()) {
-      toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty." });
-      return;
-    }
-    if (data.goods.length === 0) {
-      toast({ variant: "destructive", title: "Invalid Input", description: "At least one good must be added to the contract." });
-      return;
-    }
-
-    data.goods.forEach(good => {
-      if (good.productName.trim() && good.quantity > 0) {
-        handleContractItemAdded({
-          destination: data.destination,
-          productName: good.productName,
-          quantity: good.quantity,
-        });
+    let itemsProcessed = 0;
+    data.destinationEntries.forEach((destinationEntry: ModalDestinationEntry) => {
+      if (!destinationEntry.destination.trim()) {
+        toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty for one or more entries." });
+        return; // Potentially skip this entry or halt all, based on desired strictness
       }
+      if (destinationEntry.goods.length === 0) {
+        toast({ variant: "destructive", title: "Invalid Input", description: `At least one good must be added to the contract for ${destinationEntry.destination}.` });
+        return; // Skip this entry
+      }
+
+      destinationEntry.goods.forEach(good => {
+        if (good.productName.trim() && good.quantity > 0) {
+          handleContractItemAdded({
+            destination: destinationEntry.destination,
+            productName: good.productName,
+            quantity: good.quantity,
+          });
+          itemsProcessed++;
+        } else if (good.productName.trim() && good.quantity <= 0) {
+           toast({ variant: "destructive", title: "Invalid Quantity", description: `Quantity for ${good.productName} for ${destinationEntry.destination} must be positive.`});
+        } else if (!good.productName.trim() && good.quantity > 0) {
+           toast({ variant: "destructive", title: "Invalid Product Name", description: `Product name for an item for ${destinationEntry.destination} cannot be empty.`});
+        }
+      });
     });
-    setIsAddContractModalOpen(false); // Close modal after submission
+
+    if (itemsProcessed > 0) {
+      setIsAddContractModalOpen(false); // Close modal if at least one item was processed
+    } else {
+       toast({ variant: "warning", title: "No Items Processed", description: "Please ensure all entries are valid." });
+    }
   }, [handleContractItemAdded, toast]);
 
 
@@ -183,20 +194,20 @@ export default function HomePage() {
           <div className="lg:col-span-2 lg:sticky lg:top-28">
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
-                <CardTitle className="text-2xl">New Contract</CardTitle>
-                <CardDescription>Log a new hauling contract.</CardDescription>
+                <CardTitle className="text-2xl">New Haul</CardTitle>
+                <CardDescription>Log new hauling contracts.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full">
                   <PlusCircle className="mr-2 h-5 w-5" />
-                  Log New Contract
+                  Log New Haul
                 </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="lg:col-span-5 space-y-8">
-            <ActiveContractsDisplay 
+             <ActiveContractsDisplay 
               contracts={contracts} 
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
