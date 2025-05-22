@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { CargoInventoryDisplay } from '@/components/cargo-inventory-display';
-import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display'; // Added import
+import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display';
 import type { ContractV2, DestinationTask, Good, NewContractFormData, EditContractFormData, DestinationOverview } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { StopwatchDisplay } from '@/components/stopwatch-display';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Coins, User, Timer, Play, Square, RotateCcw } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, Coins, User, Users, Timer, Play, Square, RotateCcw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { Input } from '@/components/ui/input';
@@ -395,7 +395,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     let anyTasksMarkedThisOperation = false;
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
-    let currentActiveContracts = [...activeContracts]; // Operate on a fresh copy
+    let currentActiveContracts = [...activeContracts]; 
     let currentCompletedContracts = [...completedContracts];
     
     const affectedContractIdsThisOperation = new Set<string>();
@@ -428,17 +428,16 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
             } else {
                 nextActiveAfterThisOperation.push(contract);
             }
-        } else { // Contract was not affected by this destination completion
+        } else { 
              nextActiveAfterThisOperation.push(contract); 
         }
     });
 
     let nextCompletedAfterThisOperation = [...currentCompletedContracts];
     newlyCompletedFromThisOperation.forEach(newlyCompletedContract => {
-        // Add to completed only if not already there
         if (!nextCompletedAfterThisOperation.find(c => c.id === newlyCompletedContract.id)) {
             nextCompletedAfterThisOperation.push(newlyCompletedContract);
-        } else { // If somehow already there, ensure it's the updated version
+        } else { 
             nextCompletedAfterThisOperation = nextCompletedAfterThisOperation.map(c => c.id === newlyCompletedContract.id ? newlyCompletedContract : c);
         }
     });
@@ -495,10 +494,10 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
       setSessionAUECPerHour(auecPerHourCalc);
       setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Rate: ${Math.round(auecPerHourCalc).toLocaleString()} aUEC/hr.` }), 0);
     } else if (rewardForSession > 0) {
-      setSessionAUECPerHour(0); // Or null, to indicate not calculable
+      setSessionAUECPerHour(0); 
       setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Duration too short for rate calculation.` }), 0);
     } else {
-      setSessionAUECPerHour(0); // Or null
+      setSessionAUECPerHour(0); 
       setTimeout(() => toast({ title: "Session Complete", description: "No new aUEC recorded for this session." }), 0);
     }
   }, [completedContracts, elapsedTimeInSeconds, toast]);
@@ -553,34 +552,44 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="py-4 px-4 md:px-8 border-b border-border shadow-md sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="container mx-auto flex justify-between items-center gap-6">
-         <SpaceHaulerLogo />
-         <div className="flex items-center gap-4 md:gap-6">
-            <div className="text-sm md:text-base text-right">
-              <p className="font-semibold text-primary">
-                {totalPendingPayout.toLocaleString()} <span className="text-xs text-muted-foreground">aUEC Total</span>
-              </p>
-              {activeContracts.length > 0 && crewSize > 1 && (
-                <p className="text-xs text-accent">
-                  ({payoutPerCrewMember.toLocaleString()} aUEC/crew)
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Label htmlFor="crewSizeInputHeader" className="text-sm whitespace-nowrap">Crew:</Label>
-              <Input
-                id="crewSizeInputHeader"
-                type="number"
-                value={crewSize}
-                onChange={handleCrewSizeChange}
-                min="1"
-                className="w-16 h-8 text-sm"
+      <header className="py-3 px-4 md:px-8 border-b border-border shadow-md sticky top-0 bg-background/90 backdrop-blur-md z-50">
+        <div className="container mx-auto flex justify-between items-center gap-4">
+          <SpaceHaulerLogo />
+          <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-end">
+             <div className="text-xs md:text-sm text-right">
+               <p className="font-semibold text-primary">
+                 {totalPendingPayout.toLocaleString()} <span className="text-xs text-muted-foreground">aUEC Total</span>
+               </p>
+               {activeContracts.length > 0 && crewSize > 1 && (
+                 <p className="text-xs text-accent">
+                   ({payoutPerCrewMember.toLocaleString()} aUEC/crew)
+                 </p>
+               )}
+             </div>
+             <div className="flex items-center gap-2">
+               <Label htmlFor="crewSizeInputHeader" className="text-xs md:text-sm whitespace-nowrap">Crew:</Label>
+               <Input
+                 id="crewSizeInputHeader"
+                 type="number"
+                 value={crewSize}
+                 onChange={handleCrewSizeChange}
+                 min="1"
+                 className="w-14 h-8 text-xs md:text-sm"
+               />
+             </div>
+             <StopwatchDisplay
+                elapsedTimeInSeconds={elapsedTimeInSeconds}
+                stopwatchState={stopwatchState}
+                onStart={handleStartStopwatch}
+                onStop={handleStopStopwatch}
+                onReset={handleResetStopwatch}
+                sessionAUECPerHour={sessionAUECPerHour}
+                sessionDurationInSeconds={sessionDurationInSeconds}
+                sessionReward={sessionReward}
               />
-            </div>
-          </div>
-        </div>
-      </header>
+           </div>
+         </div>
+       </header>
       
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 items-start">
@@ -599,17 +608,6 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
               </CardContent>
             </Card>
             
-            <StopwatchDisplay
-                elapsedTimeInSeconds={elapsedTimeInSeconds}
-                stopwatchState={stopwatchState}
-                onStart={handleStartStopwatch}
-                onStop={handleStopStopwatch}
-                onReset={handleResetStopwatch}
-                sessionAUECPerHour={sessionAUECPerHour}
-                sessionDurationInSeconds={sessionDurationInSeconds}
-                sessionReward={sessionReward}
-            />
-
             <CargoInventoryDisplay contracts={activeContracts} />
           </div>
 
