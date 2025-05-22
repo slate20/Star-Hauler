@@ -1,22 +1,33 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { CargoInventoryDisplay } from '@/components/cargo-inventory-display';
-import type { ContractV2, DestinationTask, Good, NewContractFormData, EditContractFormData, ModalDestinationEntry, DestinationOverview, AggregatedGoodForDestination } from '@/lib/types';
+import type { ContractV2, DestinationTask, Good, NewContractFormData, EditContractFormData, DestinationOverview } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
+import { StopwatchDisplay } from '@/components/stopwatch-display';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Coins, Users, User } from 'lucide-react'; // Coins, User, Users might be unused now
+import { PlusCircle, BookOpen, History, Globe, Coins, User, Timer, Play, Square, RotateCcw } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
-import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 const ACTIVE_CONTRACTS_STORAGE_KEY = 'spaceHauler_activeContracts_v2';
 const COMPLETED_CONTRACTS_STORAGE_KEY = 'spaceHauler_completedContracts_v2';
@@ -31,6 +42,17 @@ export default function HomePage() {
   const [isEditContractModalOpen, setIsEditContractModalOpen] = useState(false);
   const [contractToEdit, setContractToEdit] = useState<ContractV2 | null>(null);
   const { toast } = useToast();
+
+  // Stopwatch State
+  const [stopwatchState, setStopwatchState] = useState<'stopped' | 'running'>('stopped');
+  const [elapsedTimeInSeconds, setElapsedTimeInSeconds] = useState<number>(0);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const totalAUECAtStopwatchStartRef = useRef<number>(0);
+  const [sessionAUECPerHour, setSessionAUECPerHour] = useState<number | null>(null);
+  const [sessionDurationInSeconds, setSessionDurationInSeconds] = useState<number | null>(null);
+  const [sessionReward, setSessionReward] = useState<number | null>(null);
+  const [isStopwatchAlertOpen, setIsStopwatchAlertOpen] = useState<boolean>(false);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -100,16 +122,16 @@ export default function HomePage() {
 
 
   const destinationsOverviewData = useMemo((): DestinationOverview[] => {
-    const overviewMap = new Map<string, { goodsMap: Map<string, number>, taskRefs: Array<{ contractId: string; taskId: string }> }>();
+    const overviewMap = new Map<string, { goodsMap: Map<string, number>, contributingTaskRefs: Array<{ contractId: string; taskId: string }> }>();
 
     activeContracts.forEach(contract => {
       contract.destinationTasks.forEach(task => {
         if (!task.isComplete) {
           if (!overviewMap.has(task.destination)) {
-            overviewMap.set(task.destination, { goodsMap: new Map(), taskRefs: [] });
+            overviewMap.set(task.destination, { goodsMap: new Map(), contributingTaskRefs: [] });
           }
           const destEntry = overviewMap.get(task.destination)!;
-          destEntry.taskRefs.push({ contractId: contract.id, taskId: task.id });
+          destEntry.contributingTaskRefs.push({ contractId: contract.id, taskId: task.id });
           
           task.goods.forEach(good => {
             destEntry.goodsMap.set(
@@ -127,7 +149,7 @@ export default function HomePage() {
         productName,
         totalQuantity,
       })).sort((a,b) => a.productName.localeCompare(b.productName)),
-      contributingTaskRefs: data.taskRefs,
+      contributingTaskRefs: data.contributingTaskRefs,
     })).sort((a,b) => a.destinationName.localeCompare(b.destinationName));
   }, [activeContracts]);
 
@@ -164,7 +186,7 @@ export default function HomePage() {
     });
 
     if (newDestinationTasks.length === 0) {
-      setTimeout(() => toast({ variant: "destructive", title: "Input Error", description: "Contract must have at least one valid destination task with goods." }), 0);
+       setTimeout(() => toast({ variant: "destructive", title: "Input Error", description: "Contract must have at least one valid destination task with goods." }), 0);
       return;
     }
     
@@ -305,46 +327,50 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     if (!contractToUpdate) {
         contractToUpdate = nextCompleted.find(c => c.id === contractId);
         sourceListWasActive = false;
+        if (!contractToUpdate) return; // Should not happen if called from UI
     }
 
-    if (!contractToUpdate) return;
+    const originalContractState = JSON.parse(JSON.stringify(contractToUpdate)); // Deep copy
 
-    const updatedTasks = contractToUpdate.destinationTasks.map(task => {
+    const updatedTasks = originalContractState.destinationTasks.map((task: DestinationTask) => {
         if (task.id === taskId) {
             const newStatus = !task.isComplete;
-            taskChangeDescription = `Task for ${task.destination} (${contractToUpdate!.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
+            taskChangeDescription = `Task for ${task.destination} (${originalContractState.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
             return { ...task, isComplete: newStatus };
         }
         return task;
     });
 
-    const updatedContract = { ...contractToUpdate, destinationTasks: updatedTasks };
-    const allTasksNowComplete = updatedTasks.every(t => t.isComplete);
+    const updatedContract = { ...originalContractState, destinationTasks: updatedTasks };
+    const allTasksNowComplete = updatedTasks.every((t: DestinationTask) => t.isComplete);
 
     if (sourceListWasActive) {
         if (allTasksNowComplete) {
             nextActive = nextActive.filter(c => c.id !== contractId);
+            // Add to completed only if not already there (safety for quick toggles)
             if (!nextCompleted.find(c => c.id === contractId)) {
                  nextCompleted = [...nextCompleted, updatedContract];
-            } else { 
+            } else { // If somehow already there, ensure it's the updated version
                  nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Complete";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved to Log Book.`;
         } else {
+            // Update in active list
             nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
         }
-    } else { 
-        if (!allTasksNowComplete) {
+    } else { // Contract was in completed list
+        if (!allTasksNowComplete) { // If any task is now incomplete
             nextCompleted = nextCompleted.filter(c => c.id !== contractId);
+            // Add to active only if not already there
             if (!nextActive.find(c => c.id === contractId)) {
                 nextActive = [...nextActive, updatedContract];
-            } else { 
+            } else {
                 nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Reopened";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved back to Active Contracts.`;
-        } else { 
+        } else { // Still all complete, just update it in completed (e.g. toggling a task off then on again)
             nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
         }
     }
@@ -368,10 +394,10 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     let anyTasksMarkedThisOperation = false;
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
-    let currentActiveContracts = [...activeContracts];
+    let currentActiveContracts = [...activeContracts]; // Operate on a fresh copy
     let currentCompletedContracts = [...completedContracts];
     
-    const affectedContractIds = new Set<string>();
+    const affectedContractIdsThisOperation = new Set<string>();
 
     const potentiallyUpdatedActiveContracts = currentActiveContracts.map(contract => {
         let tasksModifiedInThisContract = false;
@@ -379,7 +405,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
             if (task.destination === destinationName && !task.isComplete) {
                 tasksModifiedInThisContract = true;
                 anyTasksMarkedThisOperation = true;
-                affectedContractIds.add(contract.id);
+                affectedContractIdsThisOperation.add(contract.id);
                 return { ...task, isComplete: true };
             }
             return task;
@@ -387,36 +413,37 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         return tasksModifiedInThisContract ? { ...contract, destinationTasks: newDestinationTasks } : contract;
     });
     
-    const nextActive: ContractV2[] = [];
-    const newlyCompletedThisOperation: ContractV2[] = [];
+    const nextActiveAfterThisOperation: ContractV2[] = [];
+    const newlyCompletedFromThisOperation: ContractV2[] = [];
 
     potentiallyUpdatedActiveContracts.forEach(contract => {
-        if (affectedContractIds.has(contract.id)) { 
+        if (affectedContractIdsThisOperation.has(contract.id)) { 
             if (contract.destinationTasks.every(t => t.isComplete)) {
-                newlyCompletedThisOperation.push(contract);
+                newlyCompletedFromThisOperation.push(contract);
                  contractsThatBecameCompleteMessages.push({
                     title: "Contract Complete",
                     description: `Contract ${contract.contractNumber} moved to Log Book.`
                 });
             } else {
-                nextActive.push(contract);
+                nextActiveAfterThisOperation.push(contract);
             }
-        } else {
-             nextActive.push(contract); 
+        } else { // Contract was not affected by this destination completion
+             nextActiveAfterThisOperation.push(contract); 
         }
     });
 
-    let nextCompleted = [...currentCompletedContracts];
-    newlyCompletedThisOperation.forEach(nc => {
-        if (!nextCompleted.find(c => c.id === nc.id)) {
-            nextCompleted.push(nc);
-        } else { 
-            nextCompleted = nextCompleted.map(c => c.id === nc.id ? nc : c);
+    let nextCompletedAfterThisOperation = [...currentCompletedContracts];
+    newlyCompletedFromThisOperation.forEach(newlyCompletedContract => {
+        // Add to completed only if not already there
+        if (!nextCompletedAfterThisOperation.find(c => c.id === newlyCompletedContract.id)) {
+            nextCompletedAfterThisOperation.push(newlyCompletedContract);
+        } else { // If somehow already there, ensure it's the updated version
+            nextCompletedAfterThisOperation = nextCompletedAfterThisOperation.map(c => c.id === newlyCompletedContract.id ? newlyCompletedContract : c);
         }
     });
     
-    setActiveContracts(nextActive.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
-    setCompletedContracts(nextCompleted.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setActiveContracts(nextActiveAfterThisOperation.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setCompletedContracts(nextCompletedAfterThisOperation.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
 
     setTimeout(() => {
         contractsThatBecameCompleteMessages.forEach(msg => toast(msg));
@@ -436,6 +463,84 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     }
     setCrewSize(newSize);
   };
+
+  // Stopwatch Timer Effect
+  useEffect(() => {
+    if (stopwatchState === 'running') {
+      timerIntervalRef.current = setInterval(() => {
+        setElapsedTimeInSeconds(prevTime => prevTime + 1);
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    }
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [stopwatchState]);
+
+  const calculateAndSetSessionStats = useCallback(() => {
+    const currentTotalCompletedReward = completedContracts.reduce((sum, c) => sum + c.reward, 0);
+    const rewardForSession = Math.max(0, currentTotalCompletedReward - totalAUECAtStopwatchStartRef.current);
+
+    setSessionReward(rewardForSession);
+    setSessionDurationInSeconds(elapsedTimeInSeconds);
+
+    if (elapsedTimeInSeconds > 0 && rewardForSession > 0) {
+      const auecPerHourCalc = (rewardForSession / elapsedTimeInSeconds) * 3600;
+      setSessionAUECPerHour(auecPerHourCalc);
+      setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Rate: ${Math.round(auecPerHourCalc).toLocaleString()} aUEC/hr.` }), 0);
+    } else if (rewardForSession > 0) {
+      setSessionAUECPerHour(0); // Or null, to indicate not calculable
+      setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Duration too short for rate calculation.` }), 0);
+    } else {
+      setSessionAUECPerHour(0); // Or null
+      setTimeout(() => toast({ title: "Session Complete", description: "No new aUEC recorded for this session." }), 0);
+    }
+  }, [completedContracts, elapsedTimeInSeconds, toast]);
+
+
+  const handleStartStopwatch = useCallback(() => {
+    setStopwatchState('running');
+    setElapsedTimeInSeconds(0);
+    setSessionAUECPerHour(null);
+    setSessionDurationInSeconds(null);
+    setSessionReward(null);
+    totalAUECAtStopwatchStartRef.current = completedContracts.reduce((sum, c) => sum + c.reward, 0);
+    setTimeout(() => toast({ title: "Stopwatch Started", description: "Hauling session tracking initiated." }),0);
+  }, [completedContracts, toast]);
+
+  const handleStopStopwatch = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    setStopwatchState('stopped');
+
+    const hasIncompleteActiveTasks = activeContracts.some(c => c.destinationTasks.some(t => !t.isComplete));
+
+    if (hasIncompleteActiveTasks) {
+      setIsStopwatchAlertOpen(true);
+    } else {
+      calculateAndSetSessionStats();
+    }
+  }, [activeContracts, calculateAndSetSessionStats]);
+
+  const handleResetStopwatch = useCallback(() => {
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+    }
+    setStopwatchState('stopped');
+    setElapsedTimeInSeconds(0);
+    setSessionAUECPerHour(null);
+    setSessionDurationInSeconds(null);
+    setSessionReward(null);
+    totalAUECAtStopwatchStartRef.current = 0;
+     setTimeout(() => toast({ title: "Stopwatch Reset" }), 0);
+  }, [toast]);
+
 
   if (!isClient) {
     return (
@@ -493,6 +598,17 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
               </CardContent>
             </Card>
             
+            <StopwatchDisplay
+                elapsedTimeInSeconds={elapsedTimeInSeconds}
+                stopwatchState={stopwatchState}
+                onStart={handleStartStopwatch}
+                onStop={handleStopStopwatch}
+                onReset={handleResetStopwatch}
+                sessionAUECPerHour={sessionAUECPerHour}
+                sessionDurationInSeconds={sessionDurationInSeconds}
+                sessionReward={sessionReward}
+            />
+
             <CargoInventoryDisplay contracts={activeContracts} />
           </div>
 
@@ -548,6 +664,26 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         onContractUpdate={handleContractUpdate}
         contractToEdit={contractToEdit}
       />
+
+      <AlertDialog open={isStopwatchAlertOpen} onOpenChange={setIsStopwatchAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Incomplete Active Tasks</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have active contracts with tasks not yet delivered. These will not be included in this session's aUEC/hr calculation. Proceed anyway?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setIsStopwatchAlertOpen(false);
+              calculateAndSetSessionStats();
+            }}>
+              Proceed
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <footer className="text-center p-6 text-muted-foreground text-sm border-t border-border mt-12">
         Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts.
