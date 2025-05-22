@@ -30,6 +30,21 @@ import {
 } from "@/components/ui/alert-dialog";
 
 
+// Utility function to generate UUIDs safely across browsers
+function generateUUID() {
+  // Use crypto.randomUUID if available
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  
+  // Fallback implementation for browsers without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 const ACTIVE_CONTRACTS_STORAGE_KEY = 'spaceHauler_activeContracts_v2';
 const COMPLETED_CONTRACTS_STORAGE_KEY = 'spaceHauler_completedContracts_v2';
 const CREW_SIZE_STORAGE_KEY = 'spaceHauler_crewSize_v1';
@@ -170,7 +185,7 @@ export default function HomePage() {
         return []; 
       }
       const taskGoods: Good[] = entry.goods.map(good => ({
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         productName: good.productName,
         quantity: good.quantity
       })).filter(g => g.productName.trim() && g.quantity > 0)
@@ -179,7 +194,7 @@ export default function HomePage() {
       if (taskGoods.length === 0) return [];
 
       return [{
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         destination: entry.destination,
         goods: taskGoods,
         isComplete: false,
@@ -192,7 +207,7 @@ export default function HomePage() {
     }
     
     const newContract: ContractV2 = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       contractNumber: data.contractNumber,
       reward: data.rewardK * 1000, 
       destinationTasks: newDestinationTasks.sort((a,b) => a.destination.localeCompare(b.destination)),
@@ -295,7 +310,7 @@ export default function HomePage() {
                     index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
                   );
                 } else {
-                  const newGood: Good = { id: crypto.randomUUID(), productName: goodData.productName, quantity: goodData.quantity };
+                  const newGood: Good = { id: generateUUID(), productName: goodData.productName, quantity: goodData.quantity };
                   updatedGoods = [...task.goods, newGood];
                 }
                 return { ...task, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
