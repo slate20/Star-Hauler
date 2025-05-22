@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
-import { CargoInventoryDisplay } from '@/components/cargo-inventory-display'; // Updated import
+import { CargoInventoryDisplay } from '@/components/cargo-inventory-display';
 import type { Contract, Good, ContractItemData, NewContractFormData, ModalDestinationEntry } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -112,20 +112,18 @@ export default function HomePage() {
         }
       });
       if (goodsForThisDestinationProcessed === 0 && !hasFatalError && destinationEntry.goods.length > 0) {
-        // This case handles if all goods for a specific destination were invalid but not fatal for others yet
         toast({ variant: "warning", title: "No Valid Goods", description: `No valid goods processed for ${destinationEntry.destination}.` });
       }
 
     });
 
     if (itemsProcessed > 0 && !hasFatalError) {
-      setIsAddContractModalOpen(false); 
-      form.reset({ destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }] }); // Reset form on successful submission
-    } else if (!hasFatalError) { // No items processed but no fatal errors either (e.g. all fields empty but valid structure)
+      setIsAddContractModalOpen(false); // Close modal on successful submission
+    } else if (!hasFatalError) { 
        toast({ variant: "warning", title: "No Items Processed", description: "Please ensure all entries are valid and have items." });
     }
-    // If hasFatalError, modal remains open for correction
-  }, [handleContractItemAdded, toast]); // Removed form from dependencies, handled by parent
+    // If hasFatalError, modal remains open for correction by not calling setIsAddContractModalOpen(false)
+  }, [handleContractItemAdded, toast]);
 
 
   const handleUpdateGoodQuantity = useCallback((contractId: string, goodId: string, newQuantity: number) => {
@@ -179,15 +177,13 @@ export default function HomePage() {
           const existingGoodIndex = contract.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
           let updatedGoods;
           if (existingGoodIndex > -1) {
-             // Good exists, update quantity
             updatedGoods = contract.goods.map((g, index) =>
               index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
             );
           } else {
-            // New good
             const newGood: Good = {
               id: crypto.randomUUID(),
-              productName: goodData.productName, // Use the casing from input
+              productName: goodData.productName,
               quantity: goodData.quantity,
             };
             updatedGoods = [...contract.goods, newGood];
@@ -252,9 +248,9 @@ export default function HomePage() {
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
-              onCompleteContract={handleCompleteContract} // Pass handler
+              onCompleteContract={handleCompleteContract}
             />
-            <CargoInventoryDisplay contracts={contracts} /> {/* Updated component */}
+            <CargoInventoryDisplay contracts={contracts} />
           </div>
         </div>
       </main>
@@ -271,8 +267,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-// Added a dummy form variable to satisfy handleModalContractSubmit's expectation after removing it from dependencies
-// This is a temporary workaround. In a real app, form reset should be handled more elegantly,
-// possibly by passing the form instance or a reset function to handleModalContractSubmit.
-const form = { reset: (values?: any) => {} };

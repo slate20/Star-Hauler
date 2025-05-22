@@ -1,13 +1,12 @@
 
 "use client";
 
-import React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form'; // Removed Controller, not directly used here
+import React, { useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { NewContractFormData } from '@/lib/types'; // ModalDestinationEntry is implicitly used by NewContractFormData
+import type { NewContractFormData } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-// Input is not directly used here anymore, but through DestinationEntryFields
 import {
   Dialog,
   DialogContent,
@@ -16,14 +15,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Form,
-  // FormControl, FormField, FormItem, FormLabel, FormMessage are used in sub-component
-} from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, XCircle, MapPin } from 'lucide-react'; // Removed PlusCircle, Trash2, PackagePlus as they are in sub-component
-// Separator is not used here anymore
-import { DestinationEntryFields } from './destination-entry-fields'; // Import the new component
+import { Send, XCircle, MapPin } from 'lucide-react';
+import { DestinationEntryFields } from './destination-entry-fields';
 
 const goodItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -58,19 +53,28 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     name: "destinationEntries",
   });
 
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset the form when the modal is closed for any reason
+      form.reset({
+        destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
+      });
+    }
+  }, [isOpen, form]);
+
   const onSubmit = (data: NewContractFormData) => {
     onContractSubmit(data);
-    // The decision to reset form and close modal is typically handled by the parent (HomePage)
-    // based on submission success/failure by toggling the 'isOpen' prop.
+    // Parent (HomePage) decides whether to close the modal based on submission success.
+    // If closed, the useEffect above will handle the reset.
   };
 
-  const handleClose = () => {
-    form.reset({ destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }] });
+  const handleCancel = () => {
+    // onOpenChange(false) will trigger the useEffect to reset the form.
     onOpenChange(false);
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}> {/* Let parent manage open state fully, useEffect handles reset */}
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Log New Hauling Contract(s)</DialogTitle>
@@ -80,7 +84,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
         </DialogHeader>
         <Form {...form}> {/* FormProvider for useFormContext in child components */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex-grow overflow-hidden flex flex-col">
-            <ScrollArea className="flex-grow pr-6 -mr-2">
+            <ScrollArea className="flex-grow pr-6 -mr-2"> {/* Scroll area for destination entries */}
               <div className="space-y-6 p-1">
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
@@ -112,7 +116,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
               </div>
             </ScrollArea>
             <DialogFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={handleClose}>
+              <Button type="button" variant="outline" onClick={handleCancel}> {/* Use handleCancel */}
                  <XCircle className="mr-2 h-4 w-4" /> Cancel
               </Button>
               <Button type="submit">
