@@ -471,6 +471,59 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     setCrewSize(prev => Math.max(1, prev - 1));
   };
 
+  const handleAbandonContract = useCallback((contractId: string) => {
+    // Find the contract to be abandoned for the toast message
+    const contractToAbandon = activeContracts.find(c => c.id === contractId);
+    if (!contractToAbandon) return;
+    
+    // Remove the contract from active contracts
+    setActiveContracts(prev => prev.filter(c => c.id !== contractId));
+    
+    // Show a toast notification
+    setTimeout(() => {
+      toast({
+        title: "Contract Abandoned",
+        description: `Contract ${contractToAbandon.contractNumber} has been abandoned.`,
+        variant: "destructive"
+      });
+    }, 0);
+  }, [activeContracts, toast]);
+
+  const handleDeleteContract = useCallback((contractId: string) => {
+    // Find the contract to be deleted for the toast message
+    const contractToDelete = completedContracts.find(c => c.id === contractId);
+    if (!contractToDelete) return;
+    
+    // Remove the contract from completed contracts
+    setCompletedContracts(prev => prev.filter(c => c.id !== contractId));
+    
+    // Show a toast notification
+    setTimeout(() => {
+      toast({
+        title: "Contract Deleted",
+        description: `Contract ${contractToDelete.contractNumber} has been removed from the log book.`,
+        variant: "destructive"
+      });
+    }, 0);
+  }, [completedContracts, toast]);
+
+  const handleClearLogBook = useCallback(() => {
+    // Get the count for the toast message
+    const contractCount = completedContracts.length;
+    
+    // Clear all completed contracts
+    setCompletedContracts([]);
+    
+    // Show a toast notification
+    setTimeout(() => {
+      toast({
+        title: "Log Book Cleared",
+        description: `All ${contractCount} completed contracts have been removed from the log book.`,
+        variant: "destructive"
+      });
+    }, 0);
+  }, [completedContracts, toast]);
+
   // Stopwatch Timer Effect
   useEffect(() => {
     if (stopwatchState === 'running') {
@@ -552,7 +605,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
   if (!isClient) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <p>Loading Space Hauler Interface...</p>
+        <p>Loading Star-Hauler Interface...</p>
       </div>
     );
   }
@@ -606,7 +659,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
           <div className="lg:col-span-2 lg:sticky lg:top-24 space-y-6 md:space-y-8"> 
             <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full text-base py-3">
               <PlusCircle className="mr-2 h-5 w-5" />
-              Log New Contract
+              New Contract
             </Button>
 
             {/* Desktop-only Info Cards in Left Panel */}
@@ -695,6 +748,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                   onAddGoodToTask={handleAddGoodToTask}
                   onToggleTaskStatus={handleToggleTaskStatus}
                   onOpenEditModal={handleOpenEditModal}
+                  onAbandonContract={handleAbandonContract}
                 />
               </TabsContent>
               <TabsContent value="destinations" className="w-full mt-6">
@@ -706,7 +760,9 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
               <TabsContent value="logbook" className="w-full mt-6">
                  <LogBookDisplay 
                   contracts={completedContracts}
-                  onToggleTaskStatus={handleToggleTaskStatus} 
+                  onToggleTaskStatus={handleToggleTaskStatus}
+                  onDeleteContract={handleDeleteContract}
+                  onClearLogBook={handleClearLogBook}
                  />
               </TabsContent>
             </Tabs>

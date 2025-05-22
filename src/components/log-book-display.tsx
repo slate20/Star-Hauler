@@ -6,16 +6,32 @@ import type { ContractV2 } from '@/lib/types';
 import { DestinationTaskCard } from './destination-task-card'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { BookOpen, FileText } from 'lucide-react';
+import { BookOpen, FileText, Trash2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type LogBookDisplayProps = {
   contracts: ContractV2[];
   onToggleTaskStatus: (contractId: string, taskId: string) => void; // To allow reopening
+  onDeleteContract?: (contractId: string) => void; // To delete a single contract
+  onClearLogBook?: () => void; // To clear the entire log book
 };
 
 export const LogBookDisplay: React.FC<LogBookDisplayProps> = ({ 
   contracts,
   onToggleTaskStatus,
+  onDeleteContract,
+  onClearLogBook,
 }) => {
   
   if (!contracts || contracts.length === 0) {
@@ -42,6 +58,39 @@ export const LogBookDisplay: React.FC<LogBookDisplayProps> = ({
             <CardTitle className="text-xl flex items-center">
                 <BookOpen className="mr-2 h-6 w-6 text-primary" /> Log Book ({sortedContracts.length} contracts)
             </CardTitle>
+            
+            {onClearLogBook && sortedContracts.length > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="text-destructive hover:text-destructive/80 border-destructive/50 hover:border-destructive"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear Log Book
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Clear Log Book</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to clear the entire log book? This will permanently delete all {sortedContracts.length} completed contracts.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={onClearLogBook}
+                      className="bg-destructive hover:bg-destructive/90"
+                    >
+                      Clear All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
         </div>
       </CardHeader>
       <CardContent>
@@ -62,8 +111,46 @@ export const LogBookDisplay: React.FC<LogBookDisplayProps> = ({
                        Reward: {rewardFormatted} aUEC
                     </div>
                   </div>
-                  <div className="text-sm text-green-400 ml-2 text-right flex-shrink-0">
-                    {completedTasks}/{totalTasks} tasks delivered
+                  <div className="flex items-center">
+                    {onDeleteContract && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 mr-2 text-destructive hover:text-destructive/80"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Delete contract ${contract.contractNumber} from log book`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete from Log Book</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete contract {contract.contractNumber} from the log book? 
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteContract(contract.id);
+                              }}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    <div className="text-sm text-green-400 ml-2 text-right flex-shrink-0">
+                      {completedTasks}/{totalTasks} tasks delivered
+                    </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-4 pt-0">

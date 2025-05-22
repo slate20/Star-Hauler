@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useFieldArray, useFormContext, Controller } from 'react-hook-form';
 import type { NewContractFormData } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { PlusCircle, Trash2, MapPin, PackagePlus } from 'lucide-react';
+import { FormCombobox } from '@/components/form-combobox';
+import { ComboboxOption } from '@/components/ui/combobox';
+import { destinations, commodities } from '@/lib/data/game-data';
 
 type DestinationEntryFieldsProps = {
   destIndex: number;
@@ -27,6 +30,52 @@ export const DestinationEntryFields: React.FC<DestinationEntryFieldsProps> = ({
   canRemoveDestination,
 }) => {
   const { control, watch, formState: { errors } } = useFormContext<NewContractFormData>();
+  
+  // Convert destinations and commodities to combobox options format
+  const destinationOptions = useMemo<ComboboxOption[]>(() => {
+    // Add an option for each destination from the data file
+    const dataOptions = destinations.map(dest => ({
+      value: dest.name, // Use name instead of ID for the value
+      label: dest.name + (dest.system ? ` (${dest.system})` : '')
+    }));
+    
+    // Add custom option for backward compatibility with existing data
+    // This ensures that any custom destinations already entered still show up
+    const currentDestination = watch(`destinationEntries.${destIndex}.destination`);
+    if (currentDestination && 
+        !dataOptions.some(opt => opt.value === currentDestination) && 
+        !dataOptions.some(opt => opt.label === currentDestination)) {
+      dataOptions.push({
+        value: currentDestination,
+        label: currentDestination
+      });
+    }
+    
+    return dataOptions;
+  }, [watch, destIndex]);
+
+  const commodityOptions = useMemo<ComboboxOption[]>(() => {
+    // Add an option for each commodity from the data file
+    const dataOptions = commodities.map(commodity => ({
+      value: commodity.name, // Use name instead of ID for the value
+      label: commodity.name
+    }));
+    
+    // Add custom options for backward compatibility
+    const currentGoods = watch(`destinationEntries.${destIndex}.goods`) || [];
+    currentGoods.forEach(good => {
+      if (good.productName && 
+          !dataOptions.some(opt => opt.value === good.productName) && 
+          !dataOptions.some(opt => opt.label === good.productName)) {
+        dataOptions.push({
+          value: good.productName,
+          label: good.productName
+        });
+      }
+    });
+    
+    return dataOptions;
+  }, [watch, destIndex]);
 
   const { fields: goodFields, append: appendGood, remove: removeGood } = useFieldArray({
     control,
@@ -38,21 +87,14 @@ export const DestinationEntryFields: React.FC<DestinationEntryFieldsProps> = ({
   return (
     <div className="p-4 border rounded-lg bg-card/60 shadow-sm">
       <div className="flex justify-between items-center mb-3">
-        <FormField
+        <FormCombobox
           control={control}
           name={`destinationEntries.${destIndex}.destination`}
-          render={({ field }) => (
-            <FormItem className="flex-grow mr-2">
-              <FormLabel className="text-base">Destination #{destIndex + 1}</FormLabel>
-              <FormControl>
-                <div className="flex items-center">
-                  <MapPin className="h-5 w-5 mr-2 text-muted-foreground" />
-                  <Input placeholder="e.g., Terra Prime" {...field} className="text-base"/>
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          options={destinationOptions}
+          label={`Destination #${destIndex + 1}`}
+          placeholder="Select a destination"
+          emptyMessage="No destinations found."
+          icon={<MapPin className="h-5 w-5" />}
         />
         {canRemoveDestination && (
           <Button
@@ -74,18 +116,13 @@ export const DestinationEntryFields: React.FC<DestinationEntryFieldsProps> = ({
       {goodFields.map((goodField, goodIndex) => (
         <div key={goodField.id} className="flex items-end gap-2 mt-2 p-3 border rounded-md bg-background/50">
           <PackagePlus className="h-5 w-5 mr-1 text-muted-foreground self-center mb-3" />
-          <FormField
+          <FormCombobox
             control={control}
             name={`destinationEntries.${destIndex}.goods.${goodIndex}.productName`}
-            render={({ field }) => (
-              <FormItem className="flex-grow">
-                <FormLabel className="text-xs">Product Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., Agricium" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+            options={commodityOptions}
+            label="Product Name"
+            placeholder="Select a commodity"
+            emptyMessage="No commodities found."
           />
           <FormField
             control={control}
