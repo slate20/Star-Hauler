@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { NewContractFormData, ModalDestinationEntry } from '@/lib/types'; // Ensure ModalDestinationEntry is imported if not already
+import type { NewContractFormData, ModalDestinationEntry } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -79,9 +79,9 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow overflow-hidden flex flex-col min-h-0"> {/* Added min-h-0 */}
-            <ScrollArea className="flex-grow pr-6 -mr-2">
-              <div className="space-y-6 p-4"> {/* Changed p-1 to p-4 */}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden min-h-0">
+            <ScrollArea className="flex-1"> {/* Removed pr-6 -mr-2 */}
+              <div className="space-y-6 p-4">
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
                     key={destField.id}
