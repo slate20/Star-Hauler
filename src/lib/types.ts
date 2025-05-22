@@ -11,22 +11,33 @@ export interface Contract {
   goods: Good[];
 }
 
-// Data structure for the form input
+// Data structure for the old form input (still used by handleContractItemAdded)
 export interface ContractItemData {
   destination: string;
   productName: string;
   quantity: number;
 }
 
-// State for the form action
-export type ContractFormState = {
-  message?: string;
-  errors?: {
-    destination?: string[];
-    productName?: string[];
-    quantity?: string[];
-    _form?: string[];
-  };
-  success: boolean;
-  item?: ContractItemData; // The item that was processed
-} | null;
+// Types for the new AddContractModal
+export interface ModalGoodItem {
+  productName: string;
+  quantity: number;
+}
+
+export interface NewContractFormData {
+  destination: string;
+  goods: ModalGoodItem[];
+}
+
+// State for the old form action (will be removed)
+// export type ContractFormState = {
+//   message?: string;
+//   errors?: {
+//     destination?: string[];
+//     productName?: string[];
+//     quantity?: string[];
+//     _form?: string[];
+//   };
+//   success: boolean;
+//   item?: ContractItemData; // The item that was processed
+// } | null;

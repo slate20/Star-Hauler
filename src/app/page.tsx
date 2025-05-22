@@ -2,40 +2,42 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ContractItemForm } from '@/components/contract-item-form';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { QuantityTotalsDisplay } from '@/components/quantity-totals-display';
-import type { Contract, Good, ContractItemData } from '@/lib/types';
-// Removed UEXLocation, UEXCommodity imports
-// Removed fetchDestinationsAction, fetchCommoditiesAction imports
+import type { Contract, Good, ContractItemData, NewContractFormData } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AddContractModal } from '@/components/add-contract-modal';
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from '@/components/ui/skeleton';
+import { PlusCircle } from 'lucide-react';
 
 export default function HomePage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [isAddContractModalOpen, setIsAddContractModalOpen] = useState(false);
   const { toast } = useToast();
-
-  // Removed apiDestinations, apiCommodities, isLoadingApiData states
 
   useEffect(() => {
     setIsClient(true);
-    // Removed loadApiData function and its call
-  }, [toast]);
+  }, []);
 
   const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
     setContracts(prevContracts => {
-      const existingContractIndex = prevContracts.findIndex(c => c.destination === newItem.destination);
+      const existingContractIndex = prevContracts.findIndex(c => c.destination.toLowerCase() === newItem.destination.toLowerCase());
       let updatedContracts = [...prevContracts];
 
       if (existingContractIndex > -1) {
         const contractToUpdate = { ...updatedContracts[existingContractIndex] };
-        const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName === newItem.productName);
+        // Ensure destination casing is preserved from the first entry
+        contractToUpdate.destination = prevContracts[existingContractIndex].destination;
+        
+        const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName.toLowerCase() === newItem.productName.toLowerCase());
 
         if (existingGoodIndex > -1) {
           const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
+          // Preserve productName casing from first entry
+          goodToUpdate.productName = contractToUpdate.goods[existingGoodIndex].productName;
           goodToUpdate.quantity += newItem.quantity;
           contractToUpdate.goods = [
             ...contractToUpdate.goods.slice(0, existingGoodIndex),
@@ -65,7 +67,34 @@ export default function HomePage() {
       }
       return updatedContracts.sort((a,b) => a.destination.localeCompare(b.destination));
     });
-  }, []);
+     toast({
+        title: "Contract Updated",
+        description: `${newItem.quantity} unit(s) of ${newItem.productName} processed for ${newItem.destination}.`,
+      });
+  }, [toast]);
+  
+  const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
+    if (!data.destination.trim()) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty." });
+      return;
+    }
+    if (data.goods.length === 0) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "At least one good must be added to the contract." });
+      return;
+    }
+
+    data.goods.forEach(good => {
+      if (good.productName.trim() && good.quantity > 0) {
+        handleContractItemAdded({
+          destination: data.destination,
+          productName: good.productName,
+          quantity: good.quantity,
+        });
+      }
+    });
+    setIsAddContractModalOpen(false); // Close modal after submission
+  }, [handleContractItemAdded, toast]);
+
 
   const handleUpdateGoodQuantity = useCallback((contractId: string, goodId: string, newQuantity: number) => {
     setContracts(prevContracts =>
@@ -76,13 +105,12 @@ export default function HomePage() {
               .map(good =>
                 good.id === goodId ? { ...good, quantity: newQuantity } : good
               )
-              .filter(good => good.quantity > 0); // Remove good if quantity is 0 or less
-            // If all goods are removed, this contract itself might be filtered out later
+              .filter(good => good.quantity > 0); 
             return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods
+        .filter(contract => contract.goods.length > 0) 
     );
     toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
   }, [toast]);
@@ -97,7 +125,7 @@ export default function HomePage() {
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) // Remove contract if it has no goods left
+        .filter(contract => contract.goods.length > 0) 
     );
     toast({ title: "Good Removed", description: "The good has been removed from the contract." });
   }, [toast]);
@@ -110,15 +138,13 @@ export default function HomePage() {
     setContracts(prevContracts =>
       prevContracts.map(contract => {
         if (contract.id === contractId) {
-          const existingGoodIndex = contract.goods.findIndex(g => g.productName === goodData.productName);
+          const existingGoodIndex = contract.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
           let updatedGoods;
           if (existingGoodIndex > -1) {
-            // Good already exists, update its quantity
             updatedGoods = contract.goods.map((g, index) =>
               index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
             );
           } else {
-            // Good does not exist, add it
             const newGood: Good = {
               id: crypto.randomUUID(),
               productName: goodData.productName,
@@ -157,31 +183,35 @@ export default function HomePage() {
           <div className="lg:col-span-2 lg:sticky lg:top-28">
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
-                <CardTitle className="text-2xl">Add Contract Item</CardTitle>
-                <CardDescription>Enter destination, product, and quantity.</CardDescription>
+                <CardTitle className="text-2xl">New Contract</CardTitle>
+                <CardDescription>Log a new hauling contract.</CardDescription>
               </CardHeader>
               <CardContent>
-                {/* Removed isLoadingApiData check and Skeleton */}
-                <ContractItemForm 
-                  onItemAdded={handleContractItemAdded}
-                  // Removed destinations and commodities props
-                />
+                <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full">
+                  <PlusCircle className="mr-2 h-5 w-5" />
+                  Log New Contract
+                </Button>
               </CardContent>
             </Card>
           </div>
 
           <div className="lg:col-span-5 space-y-8">
-             <ActiveContractsDisplay 
+            <ActiveContractsDisplay 
               contracts={contracts} 
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
-              // Removed commodities and isLoadingCommodities props
             />
             <QuantityTotalsDisplay contracts={contracts} />
           </div>
         </div>
       </main>
+      
+      <AddContractModal
+        isOpen={isAddContractModalOpen}
+        onOpenChange={setIsAddContractModalOpen}
+        onContractSubmit={handleModalContractSubmit}
+      />
       
       <footer className="text-center p-6 text-muted-foreground text-sm border-t border-border mt-12">
         Space Hauler &copy; {new Date().getFullYear()} | Managing Galactic Contracts.
@@ -189,5 +219,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
