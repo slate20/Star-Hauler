@@ -5,7 +5,7 @@ import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { NewContractFormData } from '@/lib/types';
+import type { NewContractFormData, ModalDestinationEntry } from '@/lib/types'; // Ensure ModalDestinationEntry is imported if not already
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -55,7 +55,6 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
 
   useEffect(() => {
     if (!isOpen) {
-      // Reset the form when the modal is closed for any reason
       form.reset({
         destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
       });
@@ -64,17 +63,14 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
 
   const onSubmit = (data: NewContractFormData) => {
     onContractSubmit(data);
-    // Parent (HomePage) decides whether to close the modal based on submission success.
-    // If closed, the useEffect above will handle the reset.
   };
 
   const handleCancel = () => {
-    // onOpenChange(false) will trigger the useEffect to reset the form.
     onOpenChange(false);
   };
   
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}> {/* Let parent manage open state fully, useEffect handles reset */}
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Log New Hauling Contract(s)</DialogTitle>
@@ -82,10 +78,10 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
             Enter one or more destinations, and the list of goods for each.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}> {/* FormProvider for useFormContext in child components */}
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 flex-grow overflow-hidden flex flex-col">
-            <ScrollArea className="flex-grow pr-6 -mr-2"> {/* Scroll area for destination entries */}
-              <div className="space-y-6 p-1">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex-grow overflow-hidden flex flex-col min-h-0"> {/* Added min-h-0 */}
+            <ScrollArea className="flex-grow pr-6 -mr-2">
+              <div className="space-y-6 p-4"> {/* Changed p-1 to p-4 */}
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
                     key={destField.id}
@@ -116,7 +112,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
               </div>
             </ScrollArea>
             <DialogFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={handleCancel}> {/* Use handleCancel */}
+              <Button type="button" variant="outline" onClick={handleCancel}>
                  <XCircle className="mr-2 h-4 w-4" /> Cancel
               </Button>
               <Button type="submit">
