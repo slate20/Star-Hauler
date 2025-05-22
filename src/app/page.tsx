@@ -15,6 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display';
 
+const ACTIVE_CONTRACTS_STORAGE_KEY = 'spaceHauler_activeContracts_v2';
+const COMPLETED_CONTRACTS_STORAGE_KEY = 'spaceHauler_completedContracts_v2';
+
 export default function HomePage() {
   const [activeContracts, setActiveContracts] = useState<ContractV2[]>([]);
   const [completedContracts, setCompletedContracts] = useState<ContractV2[]>([]);
@@ -25,6 +28,50 @@ export default function HomePage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Load contracts from localStorage on initial client-side mount
+  useEffect(() => {
+    if (isClient) {
+      try {
+        const storedActiveContracts = localStorage.getItem(ACTIVE_CONTRACTS_STORAGE_KEY);
+        if (storedActiveContracts) {
+          setActiveContracts(JSON.parse(storedActiveContracts));
+        }
+        const storedCompletedContracts = localStorage.getItem(COMPLETED_CONTRACTS_STORAGE_KEY);
+        if (storedCompletedContracts) {
+          setCompletedContracts(JSON.parse(storedCompletedContracts));
+        }
+      } catch (error) {
+        console.error("Error loading contracts from localStorage:", error);
+        toast({ variant: "destructive", title: "Load Error", description: "Could not load saved contracts." });
+      }
+    }
+  }, [isClient, toast]);
+
+  // Save active contracts to localStorage whenever they change
+  useEffect(() => {
+    if (isClient) {
+      try {
+        localStorage.setItem(ACTIVE_CONTRACTS_STORAGE_KEY, JSON.stringify(activeContracts));
+      } catch (error) {
+        console.error("Error saving active contracts to localStorage:", error);
+        toast({ variant: "destructive", title: "Save Error", description: "Could not save active contracts." });
+      }
+    }
+  }, [activeContracts, isClient, toast]);
+
+  // Save completed contracts to localStorage whenever they change
+  useEffect(() => {
+    if (isClient) {
+      try {
+        localStorage.setItem(COMPLETED_CONTRACTS_STORAGE_KEY, JSON.stringify(completedContracts));
+      } catch (error) {
+        console.error("Error saving completed contracts to localStorage:", error);
+        toast({ variant: "destructive", title: "Save Error", description: "Could not save completed contracts." });
+      }
+    }
+  }, [completedContracts, isClient, toast]);
+
 
   const destinationsOverviewData = useMemo((): DestinationOverview[] => {
     const overviewMap = new Map<string, { goodsMap: Map<string, number>, taskRefs: Array<{ contractId: string; taskId: string }> }>();
@@ -54,7 +101,7 @@ export default function HomePage() {
         productName,
         totalQuantity,
       })).sort((a,b) => a.productName.localeCompare(b.productName)),
-      contributingTaskRefs: data.taskRefs, // Corrected from contributingTasks
+      contributingTaskRefs: data.taskRefs,
     })).sort((a,b) => a.destinationName.localeCompare(b.destinationName));
   }, [activeContracts]);
 
@@ -100,7 +147,6 @@ export default function HomePage() {
 
       if (hasFatalError) return null;
       if (taskGoods.length === 0 && entry.goods.length > 0) {
-         // This case is less likely now due to stricter checks, but good for robustness
          setTimeout(() => toast({ variant: "warning", title: "No Valid Goods", description: `No valid goods processed for task ${entry.destination}. Ensure quantities are positive and names are not empty.` }), 0);
       }
 
@@ -115,7 +161,6 @@ export default function HomePage() {
 
     if (hasFatalError) return; 
     if (newDestinationTasks.length === 0 && data.destinationEntries.length > 0) {
-      // This occurs if all destination entries had issues (e.g., no goods, empty destination name)
       setTimeout(() => toast({ variant: "warning", title: "No Tasks Processed", description: "No valid destination tasks were created. Please check all entries for errors." }), 0);
       return;
     }
@@ -124,14 +169,13 @@ export default function HomePage() {
       const newContract: ContractV2 = {
         id: crypto.randomUUID(),
         contractNumber: data.contractNumber,
-        description: "", // TODO: Consider adding a description field to the modal
+        description: "", 
         destinationTasks: newDestinationTasks.sort((a,b) => a.destination.localeCompare(b.destination)),
       };
       setActiveContracts(prev => [...prev, newContract].sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
       setTimeout(() => toast({ title: "Contract Logged", description: `Contract ${data.contractNumber} with ${newDestinationTasks.length} task(s) added.` }), 0);
       setIsAddContractModalOpen(false); 
     } else if (data.destinationEntries.length > 0){
-       // Should be caught by earlier checks, but as a fallback
        setTimeout(() => toast({ variant: "warning", title: "No Tasks Processed", description: "Ensure entries are valid. No tasks added to the contract." }), 0);
     }
   }, [toast]);
@@ -152,8 +196,6 @@ export default function HomePage() {
                   .filter(good => good.quantity > 0) 
                   .sort((a,b) => a.productName.localeCompare(b.productName));
                 
-                // If all goods are removed from a task, the task itself could be considered for removal or marked empty.
-                // For now, an empty goods list is allowed.
                 return { ...task, goods: updatedGoods };
               }
               return task;
@@ -231,63 +273,89 @@ export default function HomePage() {
 const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) => {
     let taskChangeDescription = "";
     let contractStatusChange: { title: string; description: string } | null = null;
+    let contractToUpdate: ContractV2 | undefined;
 
-    let nextActiveContracts = [...activeContracts];
-    let nextCompletedContracts = [...completedContracts];
-
-    const activeContractIndex = nextActiveContracts.findIndex(c => c.id === contractId);
-    const completedContractIndex = nextCompletedContracts.findIndex(c => c.id === contractId);
-
-    if (activeContractIndex !== -1) {
-        // Contract is currently active
-        const contract = nextActiveContracts[activeContractIndex];
-        const taskIndex = contract.destinationTasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return; // Should not happen
-
-        const task = contract.destinationTasks[taskIndex];
-        const newStatus = !task.isComplete;
-        taskChangeDescription = `Task for ${task.destination} (${contract.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
-
-        const updatedTasks = contract.destinationTasks.map((t, idx) => idx === taskIndex ? { ...t, isComplete: newStatus } : t);
-        const updatedContract = { ...contract, destinationTasks: updatedTasks.sort((a,b) => a.destination.localeCompare(b.destination)) };
-
-        if (newStatus && updatedTasks.every(t => t.isComplete)) { // Task completion led to contract completion
-            nextActiveContracts = nextActiveContracts.filter(c => c.id !== contractId);
-            // Add to completed only if not already there (defensive)
-            if (!nextCompletedContracts.find(c => c.id === updatedContract.id)) {
-                nextCompletedContracts.push(updatedContract);
+    // Process active contracts
+    const updatedActiveContracts = activeContracts.map(contract => {
+        if (contract.id === contractId) {
+            contractToUpdate = contract;
+            const task = contract.destinationTasks.find(t => t.id === taskId);
+            if (task) {
+                const newStatus = !task.isComplete;
+                taskChangeDescription = `Task for ${task.destination} (${contract.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
+                return {
+                    ...contract,
+                    destinationTasks: contract.destinationTasks.map(t =>
+                        t.id === taskId ? { ...t, isComplete: newStatus } : t
+                    ).sort((a,b) => a.destination.localeCompare(b.destination)),
+                };
             }
-            contractStatusChange = { title: "Contract Complete", description: `Contract ${updatedContract.contractNumber} moved to Log Book.` };
-        } else { // Contract stays active, task updated
-            nextActiveContracts[activeContractIndex] = updatedContract;
         }
-    } else if (completedContractIndex !== -1) {
-        // Contract is currently completed (reopening a task)
-        const contract = nextCompletedContracts[completedContractIndex];
-        const taskIndex = contract.destinationTasks.findIndex(t => t.id === taskId);
-        if (taskIndex === -1) return; // Should not happen
+        return contract;
+    });
 
-        const task = contract.destinationTasks[taskIndex];
-        // Task in completed contract is toggled, so it becomes incomplete
-        const newStatus = false; 
-        taskChangeDescription = `Task for ${task.destination} (${contract.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
-        
-        const updatedTasks = contract.destinationTasks.map((t, idx) => idx === taskIndex ? { ...t, isComplete: newStatus } : t);
-        const updatedContract = { ...contract, destinationTasks: updatedTasks.sort((a,b) => a.destination.localeCompare(b.destination)) };
-
-        // Contract moved to active
-        nextCompletedContracts = nextCompletedContracts.filter(c => c.id !== contractId);
-        // Add to active only if not already there (defensive)
-        if (!nextActiveContracts.find(c => c.id === updatedContract.id)) {
-            nextActiveContracts.push(updatedContract);
-        }
-        contractStatusChange = { title: "Contract Reopened", description: `Contract ${updatedContract.contractNumber} moved back to Active Contracts.` };
-    } else {
-        return; // Contract not found in either list
+    // Process completed contracts (if contract was found there)
+    let updatedCompletedContracts = completedContracts;
+    if (!contractToUpdate) {
+        updatedCompletedContracts = completedContracts.map(contract => {
+            if (contract.id === contractId) {
+                contractToUpdate = contract; // Now it's found in completed
+                const task = contract.destinationTasks.find(t => t.id === taskId);
+                if (task) {
+                    // Task in a completed contract is toggled, so it becomes incomplete
+                    const newStatus = false; 
+                    taskChangeDescription = `Task for ${task.destination} (${contract.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
+                     return {
+                        ...contract,
+                        destinationTasks: contract.destinationTasks.map(t =>
+                            t.id === taskId ? { ...t, isComplete: newStatus } : t
+                        ).sort((a,b) => a.destination.localeCompare(b.destination)),
+                    };
+                }
+            }
+            return contract;
+        });
     }
     
-    setActiveContracts(nextActiveContracts.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
-    setCompletedContracts(nextCompletedContracts.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    if (!contractToUpdate) return; // Should not happen if IDs are correct
+
+    // Determine new active and completed lists
+    let nextActive = [...activeContracts];
+    let nextCompleted = [...completedContracts];
+
+    const finalUpdatedContractState = contractToUpdate.destinationTasks.every(t => t.isComplete);
+    const originalContractWasInActive = activeContracts.some(c => c.id === contractId);
+
+    if (finalUpdatedContractState) { // Contract is now complete
+        const contractToAdd = updatedActiveContracts.find(c => c.id === contractId) || updatedCompletedContracts.find(c => c.id === contractId);
+        if (contractToAdd) {
+            nextActive = updatedActiveContracts.filter(c => c.id !== contractId);
+            if (!nextCompleted.find(c=> c.id === contractId)) { // Add if not already there (or was modified in completed)
+                 nextCompleted = [...nextCompleted.filter(c => c.id !== contractId), contractToAdd];
+            } else { // Contract was already in completed and a task was re-completed, update it
+                nextCompleted = nextCompleted.map(c => c.id === contractId ? contractToAdd : c);
+            }
+            if (originalContractWasInActive) { // Only toast if it moved from active
+              contractStatusChange = { title: "Contract Complete", description: `Contract ${contractToAdd.contractNumber} moved to Log Book.` };
+            }
+        }
+    } else { // Contract is now active (or remains active)
+        const contractToAdd = updatedActiveContracts.find(c => c.id === contractId) || updatedCompletedContracts.find(c => c.id === contractId);
+         if (contractToAdd) {
+            nextCompleted = updatedCompletedContracts.filter(c => c.id !== contractId);
+             if (!nextActive.find(c=> c.id === contractId)) { // Add if not already there (or was modified in active)
+                 nextActive = [...nextActive.filter(c => c.id !== contractId), contractToAdd];
+            } else { // Contract was already in active and a task was made pending, update it
+                nextActive = nextActive.map(c => c.id === contractId ? contractToAdd : c);
+            }
+            if (!originalContractWasInActive) { // Only toast if it moved from completed
+              contractStatusChange = { title: "Contract Reopened", description: `Contract ${contractToAdd.contractNumber} moved back to Active Contracts.` };
+            }
+        }
+    }
+    
+    setActiveContracts(nextActive.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setCompletedContracts(nextCompleted.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
 
     setTimeout(() => {
         if (taskChangeDescription) {
@@ -303,65 +371,52 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
 
 const handleMarkDestinationTasksComplete = useCallback((destinationName: string) => {
     let anyTasksMarkedThisOperation = false;
-    const contractsCompletedThisOperation: ContractV2[] = [];
+    const contractsThatBecameCompleteIds = new Set<string>();
 
-    // Use current state to determine next state
-    let nextActive = [...activeContracts];
-    let nextCompleted = [...completedContracts];
-
-    const stillActiveAfterProcessing: ContractV2[] = [];
-
-    nextActive.forEach(contract => {
+    // Phase 1: Update tasks in active contracts
+    const updatedActiveContracts = activeContracts.map(contract => {
         let tasksModifiedInThisContract = false;
         const newDestinationTasks = contract.destinationTasks.map(task => {
             if (task.destination === destinationName && !task.isComplete) {
                 tasksModifiedInThisContract = true;
+                anyTasksMarkedThisOperation = true;
                 return { ...task, isComplete: true };
             }
             return task;
         });
 
         if (tasksModifiedInThisContract) {
-            anyTasksMarkedThisOperation = true;
-            const processedContract = { ...contract, destinationTasks: newDestinationTasks.sort((a,b) => a.destination.localeCompare(b.destination)) };
-            
-            if (processedContract.destinationTasks.every(t => t.isComplete)) {
-                // This contract is now fully complete
-                contractsCompletedThisOperation.push(processedContract);
-                // It will not be added to stillActiveAfterProcessing
-            } else {
-                stillActiveAfterProcessing.push(processedContract); // Stays active, but updated
+            const updatedContract = { ...contract, destinationTasks: newDestinationTasks.sort((a,b) => a.destination.localeCompare(b.destination)) };
+            if (updatedContract.destinationTasks.every(t => t.isComplete)) {
+                contractsThatBecameCompleteIds.add(updatedContract.id);
             }
-        } else {
-            // No tasks for this destination relevant to this op, or already complete
-            stillActiveAfterProcessing.push(contract);
+            return updatedContract;
+        }
+        return contract;
+    });
+
+    // Phase 2: Construct new active and completed lists
+    const nextActive = updatedActiveContracts.filter(c => !contractsThatBecameCompleteIds.has(c.id));
+    const newToComplete = updatedActiveContracts.filter(c => contractsThatBecameCompleteIds.has(c.id));
+    
+    const nextCompleted = [...completedContracts];
+    newToComplete.forEach(ntc => {
+        if (!nextCompleted.find(cc => cc.id === ntc.id)) {
+            nextCompleted.push(ntc);
         }
     });
     
-    setActiveContracts(stillActiveAfterProcessing.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
-    
-    if (contractsCompletedThisOperation.length > 0) {
-        setCompletedContracts(prevCompleted => {
-            const currentCompletedIds = new Set(prevCompleted.map(c => c.id));
-            const uniqueNewToComplete = contractsCompletedThisOperation.filter(nc => !currentCompletedIds.has(nc.id));
-            
-            if (uniqueNewToComplete.length === 0) return prevCompleted; // No new unique contracts to add
-            
-            return [...prevCompleted, ...uniqueNewToComplete].sort((a,b) => a.contractNumber.localeCompare(b.contractNumber));
-        });
-    }
+    setActiveContracts(nextActive.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setCompletedContracts(nextCompleted.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
 
+    // Phase 3: Toasts
     setTimeout(() => {
-        if (contractsCompletedThisOperation.length > 0) {
-            contractsCompletedThisOperation.forEach(c => {
-                toast({ title: "Contract Complete", description: `Contract ${c.contractNumber} moved to Log Book.` });
-            });
-        }
-        // This toast should only indicate if any task for *this* destination call was marked.
-        // The contract completion toasts cover the overall contract status.
+        newToComplete.forEach(c => {
+            toast({ title: "Contract Complete", description: `Contract ${c.contractNumber} moved to Log Book.` });
+        });
         if (anyTasksMarkedThisOperation) {
              toast({ title: "Destination Tasks Updated", description: `Pending tasks for ${destinationName} marked as delivered.` });
-        } else if (contractsCompletedThisOperation.length === 0) { // Only show if no new contracts were completed AND no tasks were marked
+        } else if (newToComplete.length === 0) {
             toast({ title: "No Changes", description: `No pending tasks found for ${destinationName}.` });
         }
     }, 0);
@@ -388,7 +443,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 items-start">
           
-          <div className="lg:col-span-2 lg:sticky lg:top-28"> {/* Adjusted sticky top for header height */}
+          <div className="lg:col-span-2 lg:sticky lg:top-28">
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
                 <CardTitle className="text-2xl">New Contract</CardTitle>
