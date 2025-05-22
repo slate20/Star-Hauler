@@ -6,7 +6,7 @@ export const SpaceHaulerLogo: React.FC = () => {
     <div className="flex items-center gap-3">
       <Ship className="h-10 w-10 text-primary" aria-hidden="true" />
       <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
-        Space Hauler
+        Star Hauler
       </h1>
     </div>
   );

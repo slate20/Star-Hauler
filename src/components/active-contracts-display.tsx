@@ -6,8 +6,19 @@ import type { ContractV2 } from '@/lib/types';
 import { DestinationTaskCard } from './destination-task-card'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { FileText, PackageSearch, Pencil } from 'lucide-react';
+import { FileText, PackageSearch, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type ActiveContractsDisplayProps = {
   contracts: ContractV2[];
@@ -16,6 +27,7 @@ type ActiveContractsDisplayProps = {
   onAddGoodToTask: (contractId: string, taskId: string, goodData: { productName: string; quantity: number }) => void;
   onToggleTaskStatus: (contractId: string, taskId: string) => void;
   onOpenEditModal: (contract: ContractV2) => void;
+  onAbandonContract?: (contractId: string) => void;
 };
 
 export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
@@ -25,6 +37,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
   onAddGoodToTask,
   onToggleTaskStatus,
   onOpenEditModal,
+  onAbandonContract,
 }) => {
   
   if (!contracts || contracts.length === 0) {
@@ -76,7 +89,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                       asChild 
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 mr-2 transition-opacity" // Removed opacity classes for always visible on mobile
+                      className="h-7 w-7 mr-1 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation(); 
                         onOpenEditModal(contract);
@@ -87,6 +100,44 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                         <Pencil className="h-4 w-4" />
                       </span>
                     </Button>
+                    
+                    {onAbandonContract && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 mr-2 text-destructive hover:text-destructive/80"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Abandon contract ${contract.contractNumber}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Abandon Contract</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to abandon contract {contract.contractNumber}? 
+                              This action cannot be undone and the contract will be permanently removed.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAbandonContract(contract.id);
+                              }}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Abandon
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                    
                     <div className="text-sm text-muted-foreground ml-2 text-right flex-shrink-0">
                       {completedTasks}/{totalTasks} tasks complete
                     </div>
