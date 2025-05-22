@@ -20,7 +20,7 @@ export interface ContractV2 {
 }
 
 // Types for the AddContractModal
-export interface ModalGoodItem { // Stays the same
+export interface ModalGoodItem {
   productName: string;
   quantity: number;
 }
@@ -33,4 +33,17 @@ export interface ModalDestinationEntry { // Represents a task being built in the
 export interface NewContractFormData { // This is what onContractSubmit will receive from the modal
   contractNumber: string;
   destinationEntries: ModalDestinationEntry[];
+}
+
+// Types for Destinations Overview
+export interface AggregatedGoodForDestination {
+  productName: string;
+  totalQuantity: number;
+}
+
+export interface DestinationOverview {
+  destinationName: string;
+  goods: AggregatedGoodForDestination[];
+  // Store references to the original tasks to update them later
+  contributingTaskRefs: Array<{ contractId: string; taskId: string }>;
 }
