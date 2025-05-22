@@ -3,8 +3,9 @@
 
 import type React from 'react';
 import type { Contract } from '@/lib/types';
-import { DestinationCard } from './destination-card';
+import { ContractAccordionItem } from './contract-accordion-item';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion } from '@/components/ui/accordion';
 
 type ActiveContractsDisplayProps = {
   contracts: Contract[];
@@ -35,7 +36,6 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
   // Sort contracts by destination name for consistent display
   const sortedContracts = [...contracts].sort((a, b) => a.destination.localeCompare(b.destination));
 
-
   return (
     <Card className="shadow-xl">
       <CardHeader>
@@ -44,9 +44,9 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <Accordion type="multiple" className="w-full space-y-4">
           {sortedContracts.map((contract) => (
-            <DestinationCard 
+            <ContractAccordionItem 
               key={contract.id} 
               contract={contract}
               onUpdateGoodQuantity={onUpdateGoodQuantity}
@@ -54,7 +54,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
               onAddGoodToContract={onAddGoodToContract}
             />
           ))}
-        </div>
+        </Accordion>
       </CardContent>
     </Card>
   );

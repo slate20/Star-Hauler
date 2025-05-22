@@ -19,16 +19,6 @@ export default function HomePage() {
     setIsClient(true);
     // In a real app, this might be fetched from localStorage or an API
     // For now, we start with an empty list of contracts.
-    // Example initial data for testing:
-    // setContracts([
-    //   { id: crypto.randomUUID(), destination: "Mars Colony", goods: [
-    //     { id: crypto.randomUUID(), productName: "Water Ice", quantity: 100 },
-    //     { id: crypto.randomUUID(), productName: "Solar Panels", quantity: 20 },
-    //   ]},
-    //   { id: crypto.randomUUID(), destination: "Titan Orbital", goods: [
-    //     { id: crypto.randomUUID(), productName: "Methane Fuel", quantity: 500 },
-    //   ]},
-    // ]);
   }, []);
 
   const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
@@ -47,14 +37,14 @@ export default function HomePage() {
             ...contractToUpdate.goods.slice(0, existingGoodIndex),
             goodToUpdate,
             ...contractToUpdate.goods.slice(existingGoodIndex + 1),
-          ];
+          ].sort((a,b) => a.productName.localeCompare(b.productName));
         } else {
           const newGood: Good = {
             id: crypto.randomUUID(),
             productName: newItem.productName,
             quantity: newItem.quantity,
           };
-          contractToUpdate.goods = [...contractToUpdate.goods, newGood];
+          contractToUpdate.goods = [...contractToUpdate.goods, newGood].sort((a,b) => a.productName.localeCompare(b.productName));
         }
         updatedContracts[existingContractIndex] = contractToUpdate;
       } else {
@@ -83,7 +73,7 @@ export default function HomePage() {
                 good.id === goodId ? { ...good, quantity: newQuantity } : good
               )
               .filter(good => good.quantity > 0); // Remove good if quantity is 0 or less
-            return { ...contract, goods: updatedGoods };
+            return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
           }
           return contract;
         })
