@@ -73,6 +73,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                   </div>
                   <div className="flex items-center">
                     <Button
+                      asChild // Add asChild prop here
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 mr-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
@@ -82,7 +83,10 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                       }}
                       aria-label={`Edit contract ${contract.contractNumber}`}
                     >
-                      <Pencil className="h-4 w-4" />
+                      {/* The child of Button (when asChild is true) receives the props */}
+                      <span>
+                        <Pencil className="h-4 w-4" />
+                      </span>
                     </Button>
                     <div className="text-sm text-muted-foreground ml-2 text-right flex-shrink-0">
                       {completedTasks}/{totalTasks} tasks complete
@@ -116,4 +120,3 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     </Card>
   );
 };
-
