@@ -1,3 +1,4 @@
+
 import type {Metadata} from 'next';
 import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
@@ -14,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Space Hauler - Galactic Logistics',
-  description: 'Log hauling runs, track SCU, and stack contracts across the galaxy.',
+  title: 'Space Hauler - Contract Logistics',
+  description: 'Manage in-progress contracts, track goods, and optimize your galactic hauling.',
 };
 
 export default function RootLayout({

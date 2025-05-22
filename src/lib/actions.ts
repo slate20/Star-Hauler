@@ -1,24 +1,25 @@
+
 "use server";
 
 import { z } from "zod";
-import type { HaulingRun, HaulingRunFormState } from "./types";
+import type { ContractItemData, ContractFormState } from "./types";
 import { revalidatePath } from "next/cache";
 
-const HaulingRunSchema = z.object({
+const ContractItemSchema = z.object({
   destination: z.string().min(3, "Destination must be at least 3 characters"),
-  cargo: z.string().min(3, "Cargo type must be at least 3 characters"),
-  scu: z.coerce.number().positive("SCU must be a positive number").int("SCU must be a whole number"),
+  productName: z.string().min(2, "Product name must be at least 2 characters"),
+  quantity: z.coerce.number().positive("Quantity must be a positive number").int("Quantity must be a whole number"),
 });
 
-export async function logHaulingRunAction(
-  prevState: HaulingRunFormState,
+export async function addContractItemAction(
+  prevState: ContractFormState,
   formData: FormData
-): Promise<HaulingRunFormState> {
+): Promise<ContractFormState> {
   try {
-    const validatedFields = HaulingRunSchema.safeParse({
+    const validatedFields = ContractItemSchema.safeParse({
       destination: formData.get("destination"),
-      cargo: formData.get("cargo"),
-      scu: formData.get("scu"),
+      productName: formData.get("productName"),
+      quantity: formData.get("quantity"),
     });
 
     if (!validatedFields.success) {
@@ -29,33 +30,28 @@ export async function logHaulingRunAction(
       };
     }
 
-    const { destination, cargo, scu } = validatedFields.data;
+    const { destination, productName, quantity } = validatedFields.data;
 
-    // Simulate saving to a database
-    const newRun: HaulingRun = {
-      id: crypto.randomUUID(),
+    const newItem: ContractItemData = {
       destination,
-      cargo,
-      scu,
-      date: new Date().toISOString(),
+      productName,
+      quantity,
     };
 
-    // In a real app, you'd save to DB here.
-    // For example: await db.insert(haulingRunsTable).values(newRun);
+    console.log("New Contract Item to be added/updated:", newItem);
 
-    console.log("New Hauling Run Logged:", newRun);
-
-    revalidatePath("/"); // Revalidate the page to show new data if it were fetched server-side
+    // Revalidate path if data were fetched server-side, good practice.
+    revalidatePath("/");
 
     return {
-      message: `Successfully logged run to ${destination} with ${scu} SCU of ${cargo}.`,
+      message: `Item for ${destination} (${productName}, Qty: ${quantity}) ready to be processed.`,
       success: true,
-      run: newRun,
+      item: newItem,
     };
   } catch (error) {
-    console.error("Error logging hauling run:", error);
+    console.error("Error processing contract item:", error);
     return {
-      message: "An unexpected error occurred while logging the run. Please try again.",
+      message: "An unexpected error occurred. Please try again.",
       success: false,
     };
   }
