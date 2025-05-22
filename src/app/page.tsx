@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Coins, Users, User } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, Coins, Users, User } from 'lucide-react'; // Coins, User, Users might be unused now
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display';
@@ -324,10 +324,9 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     if (sourceListWasActive) {
         if (allTasksNowComplete) {
             nextActive = nextActive.filter(c => c.id !== contractId);
-            // Ensure no duplicates when moving to completed
             if (!nextCompleted.find(c => c.id === contractId)) {
                  nextCompleted = [...nextCompleted, updatedContract];
-            } else { // If somehow already there, update it
+            } else { 
                  nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Complete";
@@ -335,18 +334,17 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
         } else {
             nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
         }
-    } else { // Source list was completed
+    } else { 
         if (!allTasksNowComplete) {
             nextCompleted = nextCompleted.filter(c => c.id !== contractId);
-            // Ensure no duplicates when moving back to active
             if (!nextActive.find(c => c.id === contractId)) {
                 nextActive = [...nextActive, updatedContract];
-            } else { // If somehow already there, update it
+            } else { 
                 nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Reopened";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved back to Active Contracts.`;
-        } else { // Still all complete, just update it in completed list
+        } else { 
             nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
         }
     }
@@ -434,7 +432,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
   const handleCrewSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     let newSize = parseInt(event.target.value, 10);
     if (isNaN(newSize) || newSize < 1) {
-      newSize = 1; // Default to 1 if input is invalid or less than 1
+      newSize = 1; 
     }
     setCrewSize(newSize);
   };
@@ -449,16 +447,39 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="py-6 px-4 md:px-8 border-b border-border shadow-md sticky top-0 bg-background/80 backdrop-blur-md z-50">
-        <div className="container mx-auto flex justify-between items-center">
+      <header className="py-4 px-4 md:px-8 border-b border-border shadow-md sticky top-0 bg-background/80 backdrop-blur-md z-50">
+        <div className="container mx-auto flex justify-between items-center gap-6">
          <SpaceHaulerLogo />
+         <div className="flex items-center gap-4 md:gap-6">
+            <div className="text-sm md:text-base text-right">
+              <p className="font-semibold text-primary">
+                {totalPendingPayout.toLocaleString()} <span className="text-xs text-muted-foreground">aUEC Total</span>
+              </p>
+              {activeContracts.length > 0 && crewSize > 1 && (
+                <p className="text-xs text-accent">
+                  ({payoutPerCrewMember.toLocaleString()} aUEC/crew)
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="crewSizeInputHeader" className="text-sm whitespace-nowrap">Crew:</Label>
+              <Input
+                id="crewSizeInputHeader"
+                type="number"
+                value={crewSize}
+                onChange={handleCrewSizeChange}
+                min="1"
+                className="w-16 h-8 text-sm"
+              />
+            </div>
+          </div>
         </div>
       </header>
       
       <main className="container mx-auto p-4 md:p-8 flex-grow">
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 items-start">
           
-          <div className="lg:col-span-2 lg:sticky lg:top-28 space-y-8">
+          <div className="lg:col-span-2 lg:sticky lg:top-28 space-y-8"> {/* Adjusted top for new header height */}
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
                 <CardTitle className="text-2xl">New Contract</CardTitle>
@@ -469,51 +490,6 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                   <PlusCircle className="mr-2 h-5 w-5" />
                   Log New Contract
                 </Button>
-              </CardContent>
-            </Card>
-            
-            <Card className="shadow-xl bg-card/90">
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                  <Coins className="mr-2 h-5 w-5 text-primary" />
-                  Pending Payout
-                </CardTitle>
-                <CardDescription>Total reward from all active contracts.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-primary">
-                  {totalPendingPayout.toLocaleString()} <span className="text-lg font-normal text-muted-foreground">aUEC</span>
-                </p>
-                {activeContracts.length > 0 && crewSize > 1 && (
-                  <p className="text-md text-accent mt-1">
-                    <User className="inline mr-1 h-4 w-4" />
-                    {payoutPerCrewMember.toLocaleString()} aUEC per crew ({crewSize} members)
-                  </p>
-                )}
-                 {activeContracts.length === 0 && <p className="text-sm text-muted-foreground mt-2">No active contracts.</p>}
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-xl bg-card/90">
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                  <Users className="mr-2 h-5 w-5 text-primary" />
-                  Crew Configuration
-                </CardTitle>
-                <CardDescription>Set your current crew size for payout division.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="crewSizeInput" className="text-sm font-medium">Crew Size</Label>
-                  <Input
-                    id="crewSizeInput"
-                    type="number"
-                    value={crewSize}
-                    onChange={handleCrewSizeChange}
-                    min="1"
-                    className="w-full"
-                  />
-                </div>
               </CardContent>
             </Card>
             
@@ -580,4 +556,3 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
   );
 }
     
-
