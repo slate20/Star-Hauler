@@ -1,8 +1,8 @@
 "use client";
 
 import type React from 'react';
-import { useEffect } from 'react';
-import { useFormState } from 'react-dom';
+import { useEffect, useActionState } from 'react'; // Changed useFormState to useActionState and imported from 'react'
+// import { useFormState } from 'react-dom'; // Removed old import
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -33,7 +33,7 @@ type LogRunFormProps = {
 
 export const LogRunForm: React.FC<LogRunFormProps> = ({ onRunLogged }) => {
   const { toast } = useToast();
-  const [state, formAction] = useFormState<HaulingRunFormState, FormData>(logHaulingRunAction, null);
+  const [state, formAction, isPending] = useActionState<HaulingRunFormState, FormData>(logHaulingRunAction, null); // Changed useFormState to useActionState and added isPending
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -117,9 +117,9 @@ export const LogRunForm: React.FC<LogRunFormProps> = ({ onRunLogged }) => {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        <Button type="submit" className="w-full" disabled={isPending || form.formState.isSubmitting}> {/* Use isPending for submit button disabled state */}
           <Send className="mr-2 h-4 w-4" />
-          {form.formState.isSubmitting ? "Logging Run..." : "Log Hauling Run"}
+          {isPending || form.formState.isSubmitting ? "Logging Run..." : "Log Hauling Run"}
         </Button>
         {state?.message && !state.success && state.errors?._form && (
           <p className="text-sm font-medium text-destructive">{state.errors._form.join(', ')}</p>
