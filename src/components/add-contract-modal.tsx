@@ -81,8 +81,12 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form id={ADD_CONTRACT_FORM_ID} onSubmit={form.handleSubmit(onSubmit)} className="flex-1 flex flex-col overflow-hidden min-h-0">
-            <ScrollArea className="flex-1">
+          <form
+            id={ADD_CONTRACT_FORM_ID}
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex-1 flex flex-col min-h-0" // Removed overflow-hidden
+          >
+            <ScrollArea className="flex-1 overflow-y-auto"> {/* Added overflow-y-auto */}
               <div className="space-y-6 p-4">
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
@@ -113,10 +117,9 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                   )}
               </div>
             </ScrollArea>
-            {/* DialogFooter moved out of the form */}
           </form>
         </Form>
-        <DialogFooter className="pt-4 border-t mt-auto"> {/* Added mt-auto to push to bottom if space allows, border-t for separation */}
+        <DialogFooter className="pt-4 border-t mt-auto">
           <Button type="button" variant="outline" onClick={handleCancel}>
              <XCircle className="mr-2 h-4 w-4" /> Cancel
           </Button>
