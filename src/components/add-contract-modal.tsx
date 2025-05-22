@@ -28,13 +28,13 @@ const goodItemSchema = z.object({
 
 const destinationEntrySchema = z.object({
   destination: z.string().min(1, "Destination is required"),
-  goods: z.array(goodItemSchema).min(1, "At least one good must be added per destination task"),
+  goods: z.array(goodItemSchema).min(1, "At least one good must be added per destination task."),
 });
 
 const newContractFormSchema = z.object({
   contractNumber: z.string().min(1, "Contract Number/ID is required"),
   rewardK: z.coerce.number().min(0, "Reward must be zero or a positive number"),
-  destinationEntries: z.array(destinationEntrySchema).min(1, "At least one destination task is required"),
+  destinationEntries: z.array(destinationEntrySchema).min(1, "At least one destination task is required."),
 });
 
 type AddContractModalProps = {
@@ -72,7 +72,6 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
 
   const onSubmit = (data: NewContractFormData) => {
     onContractSubmit(data);
-    // onOpenChange(false); // This will trigger the useEffect for form reset via isOpen prop change
   };
 
   const handleCancel = () => {
@@ -92,9 +91,9 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
           <form
             id={ADD_CONTRACT_FORM_ID}
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex-1 flex flex-col min-h-0"
+            className="flex-1 flex flex-col min-h-0" 
           >
-            <ScrollArea className="flex-1 overflow-y-auto">
+            <ScrollArea className="flex-1 overflow-y-auto" >
               <div className="space-y-6 p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
@@ -122,7 +121,14 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                         <FormControl>
                           <div className="flex items-center">
                             <DollarSign className="h-5 w-5 mr-2 text-muted-foreground" />
-                            <Input type="number" placeholder="e.g., 50 for 50,000" {...field} className="text-base" onChange={e => field.onChange(parseFloat(e.target.value) || 0)} min="0" />
+                            <Input 
+                              type="number" 
+                              placeholder="e.g., 50 for 50,000" 
+                              {...field} 
+                              className="text-base" 
+                              onChange={e => field.onChange(e.target.value)} 
+                              min="0" 
+                            />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -131,7 +137,6 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                   />
                 </div>
                 
-
                 <FormLabel className="text-lg block pt-2">Destination Tasks:</FormLabel>
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
@@ -150,16 +155,11 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                   <MapPin className="mr-2 h-5 w-5" />
                   Add Another Destination Task
                 </Button>
-                {form.formState.errors.destinationEntries?.message && (
+                {(form.formState.errors.destinationEntries?.message || form.formState.errors.destinationEntries?.root?.message) && (
                     <p className="text-sm font-medium text-destructive mt-2 text-center">
-                        {form.formState.errors.destinationEntries.message}
+                        {form.formState.errors.destinationEntries?.message || form.formState.errors.destinationEntries?.root?.message}
                     </p>
                 )}
-                 {form.formState.errors.destinationEntries?.root?.message && (
-                    <p className="text-sm font-medium text-destructive mt-2 text-center">
-                        {form.formState.errors.destinationEntries.root.message}
-                    </p>
-                  )}
               </div>
             </ScrollArea>
           </form>
