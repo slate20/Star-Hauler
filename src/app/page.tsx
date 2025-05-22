@@ -165,19 +165,15 @@ export default function HomePage() {
 
 
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
-    if (!data.contractNumber.trim()) {
-      setTimeout(() => toast({ variant: "destructive", title: "Input Error", description: "Contract Number/ID cannot be empty." }), 0);
-      return;
-    }
-    if (data.rewardK < 0) {
-      setTimeout(() => toast({ variant: "destructive", title: "Input Error", description: "Contract Reward cannot be negative." }), 0);
-      return;
-    }
-
+    // Basic validation already handled by Zod schema in modal
+    // Additional checks for empty destinations/goods can be added if needed,
+    // but schema should cover most cases.
+    
     const newDestinationTasks: DestinationTask[] = data.destinationEntries.flatMap(entry => {
       if (!entry.destination.trim() || entry.goods.length === 0) {
-        return [];
+        return []; // Skip empty destination entries
       }
+      // Filter out goods with empty product names or non-positive quantities
       const taskGoods: Good[] = entry.goods.map(good => ({
         id: crypto.randomUUID(),
         productName: good.productName,
@@ -185,7 +181,7 @@ export default function HomePage() {
       })).filter(g => g.productName.trim() && g.quantity > 0)
          .sort((a,b) => a.productName.localeCompare(b.productName));
 
-      if (taskGoods.length === 0) return [];
+      if (taskGoods.length === 0) return []; // Skip if all goods were invalid
 
       return [{
         id: crypto.randomUUID(),
@@ -246,7 +242,7 @@ export default function HomePage() {
                   .map(good =>
                     good.id === goodId ? { ...good, quantity: newQuantity } : good
                   )
-                  .filter(good => good.quantity > 0) 
+                  .filter(good => good.quantity > 0) // Remove good if quantity is 0 or less
                   .sort((a,b) => a.productName.localeCompare(b.productName));
                 
                 return { ...task, goods: updatedGoods };
@@ -288,7 +284,7 @@ export default function HomePage() {
       return;
     }
     
-    let taskDestination = ""; 
+    let taskDestination = ""; // To capture for toast message
     setActiveContracts(prevContracts =>
       prevContracts.map(contract => {
         if (contract.id === contractId) {
@@ -296,14 +292,16 @@ export default function HomePage() {
             ...contract,
             destinationTasks: contract.destinationTasks.map(task => {
               if (task.id === taskId) {
-                taskDestination = task.destination; 
+                taskDestination = task.destination; // Capture destination for toast
                 const existingGoodIndex = task.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
                 let updatedGoods;
                 if (existingGoodIndex > -1) {
+                  // Good exists, update quantity
                   updatedGoods = task.goods.map((g, index) =>
                     index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
                   );
                 } else {
+                  // New good, add it
                   const newGood: Good = { id: crypto.randomUUID(), productName: goodData.productName, quantity: goodData.quantity };
                   updatedGoods = [...task.goods, newGood];
                 }
@@ -317,7 +315,7 @@ export default function HomePage() {
       })
     );
     setTimeout(() => {
-        if (taskDestination) { 
+        if (taskDestination) { // Only show toast if task was actually found and updated
             toast({ title: "Good Added", description: `${goodData.quantity} SCU of ${goodData.productName} added to task for ${taskDestination}.` });
         }
     }, 0);
@@ -335,6 +333,7 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
 
     const activeContractIndex = currentActiveContracts.findIndex(c => c.id === contractId);
     if (activeContractIndex !== -1) {
+        // Task is in an active contract
         contractToUpdate = { ...currentActiveContracts[activeContractIndex] };
         let taskModified = false;
         contractToUpdate.destinationTasks = contractToUpdate.destinationTasks.map(task => {
@@ -350,7 +349,9 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
         if (taskModified) {
             currentActiveContracts[activeContractIndex] = contractToUpdate;
 
+            // Check if all tasks in this contract are now complete
             if (contractToUpdate.destinationTasks.every(t => t.isComplete)) {
+                // Move to completed contracts if not already there
                 if (!currentCompletedContracts.find(compC => compC.id === contractToUpdate!.id)) {
                     currentCompletedContracts = [...currentCompletedContracts, contractToUpdate].sort((a, b) => a.contractNumber.localeCompare(b.contractNumber));
                 }
@@ -361,13 +362,14 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
             }
         }
     } else {
+        // Task might be in a completed contract (being reopened)
         const completedContractIndex = currentCompletedContracts.findIndex(c => c.id === contractId);
         if (completedContractIndex !== -1) {
             contractToUpdate = { ...currentCompletedContracts[completedContractIndex] };
             let taskMadePending = false;
             contractToUpdate.destinationTasks = contractToUpdate.destinationTasks.map(task => {
                 if (task.id === taskId) {
-                    const newStatus = !task.isComplete; 
+                    const newStatus = !task.isComplete; // Should become false (pending)
                     if (!newStatus) taskMadePending = true;
                     taskChangeDescription = `Task for ${task.destination} (${contractToUpdate!.contractNumber}) marked as ${newStatus ? 'delivered' : 'pending'}.`;
                     return { ...task, isComplete: newStatus };
@@ -377,6 +379,7 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
 
             currentCompletedContracts[completedContractIndex] = contractToUpdate;
 
+            // If any task was marked pending, move the whole contract back to active
             if (taskMadePending) { 
                 if (!currentActiveContracts.find(actC => actC.id === contractToUpdate!.id)) {
                     currentActiveContracts = [...currentActiveContracts, contractToUpdate].sort((a, b) => a.contractNumber.localeCompare(b.contractNumber));
@@ -397,6 +400,7 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
             toast({ title: "Task Status Updated", description: taskChangeDescription });
         }
         if (contractStatusChangeTitle && contractStatusChangeDescription && contractMoved) {
+            // This toast will fire if a contract moved between active/completed
             toast({ title: contractStatusChangeTitle, description: contractStatusChangeDescription });
         }
     }, 0);
@@ -407,8 +411,9 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     let anyTasksMarkedThisOperation = false;
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
+    // Create new arrays for state updates to avoid direct mutation issues with React state
     const nextActiveContracts: ContractV2[] = [];
-    let nextCompletedContracts = [...completedContracts];
+    let nextCompletedContracts = [...completedContracts]; // Start with current completed
     
     activeContracts.forEach(contract => {
         let tasksModifiedInThisContract = false;
@@ -424,7 +429,9 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         const updatedContract = { ...contract, destinationTasks: newDestinationTasks };
 
         if (tasksModifiedInThisContract) {
+            // If tasks were modified, check if the contract is now fully complete
             if (updatedContract.destinationTasks.every(t => t.isComplete)) {
+                // Ensure it's not already in nextCompletedContracts before adding
                  if (!nextCompletedContracts.find(c => c.id === updatedContract.id)) {
                     nextCompletedContracts.push(updatedContract);
                     contractsThatBecameCompleteMessages.push({
@@ -432,14 +439,17 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                         description: `Contract ${updatedContract.contractNumber} moved to Log Book.`
                     });
                 }
+                // Don't add to nextActiveContracts if it's now complete
             } else {
-                nextActiveContracts.push(updatedContract);
+                nextActiveContracts.push(updatedContract); // Still active
             }
         } else {
+            // No tasks modified in this contract for this destination, so it remains active as is
             nextActiveContracts.push(contract);
         }
     });
     
+    // Sort completed contracts once at the end
     nextCompletedContracts.sort((a, b) => a.contractNumber.localeCompare(b.contractNumber));
     
     setActiveContracts(nextActiveContracts.sort((a, b) => a.contractNumber.localeCompare(b.contractNumber)));
@@ -449,7 +459,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         contractsThatBecameCompleteMessages.forEach(msg => toast(msg));
         if (anyTasksMarkedThisOperation) {
              toast({ title: "Destination Tasks Updated", description: `Pending tasks for ${destinationName} marked as delivered.` });
-        } else if (contractsThatBecameCompleteMessages.length === 0) { 
+        } else if (contractsThatBecameCompleteMessages.length === 0) { // Only show "No Changes" if no tasks were marked AND no contracts completed
             toast({ title: "No Changes", description: `No pending tasks found for ${destinationName}.` });
         }
     }, 0);
@@ -459,7 +469,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
   const handleCrewSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     let newSize = parseInt(event.target.value, 10);
     if (isNaN(newSize) || newSize < 1) {
-      newSize = 1; 
+      newSize = 1; // Default to 1 if input is invalid or less than 1
     }
     setCrewSize(newSize);
   };
@@ -494,10 +504,10 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
       setSessionAUECPerHour(auecPerHourCalc);
       setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Rate: ${Math.round(auecPerHourCalc).toLocaleString()} aUEC/hr.` }), 0);
     } else if (rewardForSession > 0) {
-      setSessionAUECPerHour(0); 
+      setSessionAUECPerHour(0); // Cannot calculate rate if time is 0
       setTimeout(() => toast({ title: "Session Complete!", description: `Earned ${rewardForSession.toLocaleString()} aUEC. Duration too short for rate calculation.` }), 0);
     } else {
-      setSessionAUECPerHour(0); 
+      setSessionAUECPerHour(0); // No reward or no time
       setTimeout(() => toast({ title: "Session Complete", description: "No new aUEC recorded for this session." }), 0);
     }
   }, [completedContracts, elapsedTimeInSeconds, toast]);
@@ -519,6 +529,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     }
     setStopwatchState('stopped');
 
+    // Check if there are ANY active contracts with ANY incomplete tasks
     const hasIncompleteActiveTasks = activeContracts.some(c => c.destinationTasks.some(t => !t.isComplete));
 
     if (hasIncompleteActiveTasks) {
@@ -543,6 +554,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
 
   if (!isClient) {
+    // Simple loading state, can be replaced with a Skeleton loader
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <p>Loading Space Hauler Interface...</p>
@@ -579,6 +591,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                />
              </div>
              <StopwatchDisplay
+                variant="header"
                 elapsedTimeInSeconds={elapsedTimeInSeconds}
                 stopwatchState={stopwatchState}
                 onStart={handleStartStopwatch}
@@ -657,6 +670,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                  </CardHeader>
                  <CardContent>
                     <StopwatchDisplay
+                        variant="panel"
                         elapsedTimeInSeconds={elapsedTimeInSeconds}
                         stopwatchState={stopwatchState}
                         onStart={handleStartStopwatch}
