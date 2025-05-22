@@ -73,17 +73,16 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                   </div>
                   <div className="flex items-center">
                     <Button
-                      asChild // Add asChild prop here
+                      asChild 
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 mr-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      className="h-7 w-7 mr-2 transition-opacity" // Removed opacity classes for always visible on mobile
                       onClick={(e) => {
                         e.stopPropagation(); 
                         onOpenEditModal(contract);
                       }}
                       aria-label={`Edit contract ${contract.contractNumber}`}
                     >
-                      {/* The child of Button (when asChild is true) receives the props */}
                       <span>
                         <Pencil className="h-4 w-4" />
                       </span>
@@ -120,3 +119,4 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     </Card>
   );
 };
+

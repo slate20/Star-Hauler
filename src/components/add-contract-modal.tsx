@@ -50,7 +50,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     resolver: zodResolver(newContractFormSchema),
     defaultValues: {
       contractNumber: `CN-${Date.now().toString().slice(-6)}`,
-      rewardK: '', // Default to empty string to show placeholder
+      rewardK: '', 
       destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
     },
   });
@@ -64,7 +64,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     if (!isOpen) {
       form.reset({
         contractNumber: `CN-${Date.now().toString().slice(-6)}`,
-        rewardK: '', // Reset to empty string
+        rewardK: '',
         destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
       });
     }
@@ -80,7 +80,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+      <DialogContent className="w-[90vw] max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Log New Hauling Contract</DialogTitle>
           <DialogDescription>
@@ -126,7 +126,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                               placeholder="e.g., 50 for 50,000" 
                               {...field} 
                               className="text-base" 
-                              onChange={e => field.onChange(e.target.value)} // Pass raw value
+                              onChange={e => field.onChange(e.target.value)}
                               min="0" 
                             />
                           </div>
@@ -176,3 +176,4 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
     </Dialog>
   );
 };
+

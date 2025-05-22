@@ -13,7 +13,7 @@ import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { StopwatchDisplay } from '@/components/stopwatch-display';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Coins, User, Users, Timer, Play, Square, RotateCcw } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { Input } from '@/components/ui/input';
@@ -328,10 +328,10 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     if (!contractToUpdate) {
         contractToUpdate = nextCompleted.find(c => c.id === contractId);
         sourceListWasActive = false;
-        if (!contractToUpdate) return; // Should not happen if called from UI
+        if (!contractToUpdate) return; 
     }
 
-    const originalContractState = JSON.parse(JSON.stringify(contractToUpdate)); // Deep copy
+    const originalContractState = JSON.parse(JSON.stringify(contractToUpdate)); 
 
     const updatedTasks = originalContractState.destinationTasks.map((task: DestinationTask) => {
         if (task.id === taskId) {
@@ -348,22 +348,19 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     if (sourceListWasActive) {
         if (allTasksNowComplete) {
             nextActive = nextActive.filter(c => c.id !== contractId);
-            // Add to completed only if not already there (safety for quick toggles)
             if (!nextCompleted.find(c => c.id === contractId)) {
                  nextCompleted = [...nextCompleted, updatedContract];
-            } else { // If somehow already there, ensure it's the updated version
+            } else { 
                  nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
             }
             contractStatusChangeTitle = "Contract Complete";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved to Log Book.`;
         } else {
-            // Update in active list
             nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
         }
-    } else { // Contract was in completed list
-        if (!allTasksNowComplete) { // If any task is now incomplete
+    } else { 
+        if (!allTasksNowComplete) { 
             nextCompleted = nextCompleted.filter(c => c.id !== contractId);
-            // Add to active only if not already there
             if (!nextActive.find(c => c.id === contractId)) {
                 nextActive = [...nextActive, updatedContract];
             } else {
@@ -371,7 +368,7 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
             }
             contractStatusChangeTitle = "Contract Reopened";
             contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved back to Active Contracts.`;
-        } else { // Still all complete, just update it in completed (e.g. toggling a task off then on again)
+        } else { 
             nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
         }
     }
@@ -555,8 +552,8 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
       <header className="py-3 px-4 md:px-8 border-b border-border shadow-md sticky top-0 bg-background/90 backdrop-blur-md z-50">
         <div className="container mx-auto flex justify-between items-center gap-4">
           <SpaceHaulerLogo />
-          <div className="flex items-center gap-4 md:gap-6 flex-wrap justify-end">
-             <div className="text-xs md:text-sm text-right">
+          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 flex-wrap justify-end">
+             <div className="text-xs sm:text-sm text-right">
                <p className="font-semibold text-primary">
                  {totalPendingPayout.toLocaleString()} <span className="text-xs text-muted-foreground">aUEC Total</span>
                </p>
@@ -566,15 +563,15 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                  </p>
                )}
              </div>
-             <div className="flex items-center gap-2">
-               <Label htmlFor="crewSizeInputHeader" className="text-xs md:text-sm whitespace-nowrap">Crew:</Label>
+             <div className="flex items-center gap-1 sm:gap-2">
+               <Label htmlFor="crewSizeInputHeader" className="text-xs sm:text-sm whitespace-nowrap">Crew:</Label>
                <Input
                  id="crewSizeInputHeader"
                  type="number"
                  value={crewSize}
                  onChange={handleCrewSizeChange}
                  min="1"
-                 className="w-14 h-8 text-xs md:text-sm"
+                 className="w-12 sm:w-14 h-8 text-xs sm:text-sm"
                />
              </div>
              <StopwatchDisplay
@@ -592,12 +589,12 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
        </header>
       
       <main className="container mx-auto p-4 md:p-8 flex-grow">
-        <div className="grid grid-cols-1 lg:grid-cols-7 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-6 md:gap-8 items-start">
           
-          <div className="lg:col-span-2 lg:sticky lg:top-28 space-y-8"> {/* Adjusted top for new header height */}
+          <div className="lg:col-span-2 lg:sticky lg:top-28 space-y-6 md:space-y-8"> 
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
-                <CardTitle className="text-2xl">New Contract</CardTitle>
+                <CardTitle className="text-xl md:text-2xl">New Contract</CardTitle>
                 <CardDescription>Log a new contract with all its destinations and goods.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -613,15 +610,15 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
           <div className="lg:col-span-5 space-y-8">
             <Tabs defaultValue="active" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="active">
-                  <History className="mr-2 h-5 w-5" /> Active Contracts ({activeContracts.length})
+              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-6">
+                <TabsTrigger value="active" className="text-xs sm:text-sm py-1.5 sm:py-2.5">
+                  <History className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> Active ({activeContracts.length})
                 </TabsTrigger>
-                <TabsTrigger value="destinations">
-                  <Globe className="mr-2 h-5 w-5" /> Destinations ({destinationsOverviewData.length}) 
+                <TabsTrigger value="destinations" className="text-xs sm:text-sm py-1.5 sm:py-2.5">
+                  <Globe className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> Destinations ({destinationsOverviewData.length}) 
                 </TabsTrigger>
-                <TabsTrigger value="logbook">
-                  <BookOpen className="mr-2 h-5 w-5" /> Log Book ({completedContracts.length})
+                <TabsTrigger value="logbook" className="text-xs sm:text-sm py-1.5 sm:py-2.5">
+                  <BookOpen className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" /> Log Book ({completedContracts.length})
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="active">
