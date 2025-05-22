@@ -11,17 +11,21 @@ import { Button } from '@/components/ui/button';
 import { AddContractModal } from '@/components/add-contract-modal';
 import { EditContractModal } from '@/components/edit-contract-modal';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle, BookOpen, History, Globe, Coins } from 'lucide-react';
+import { PlusCircle, BookOpen, History, Globe, Coins, Users, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogBookDisplay } from '@/components/log-book-display';
 import { DestinationsOverviewDisplay } from '@/components/destinations-overview-display';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ACTIVE_CONTRACTS_STORAGE_KEY = 'spaceHauler_activeContracts_v2';
 const COMPLETED_CONTRACTS_STORAGE_KEY = 'spaceHauler_completedContracts_v2';
+const CREW_SIZE_STORAGE_KEY = 'spaceHauler_crewSize_v1';
 
 export default function HomePage() {
   const [activeContracts, setActiveContracts] = useState<ContractV2[]>([]);
   const [completedContracts, setCompletedContracts] = useState<ContractV2[]>([]);
+  const [crewSize, setCrewSize] = useState<number>(1);
   const [isClient, setIsClient] = useState(false);
   const [isAddContractModalOpen, setIsAddContractModalOpen] = useState(false);
   const [isEditContractModalOpen, setIsEditContractModalOpen] = useState(false);
@@ -32,7 +36,7 @@ export default function HomePage() {
     setIsClient(true);
   }, []);
 
-  // Load contracts from localStorage on initial client-side mount
+  // Load data from localStorage on initial client-side mount
   useEffect(() => {
     if (isClient) {
       try {
@@ -44,36 +48,55 @@ export default function HomePage() {
         if (storedCompletedContracts) {
           setCompletedContracts(JSON.parse(storedCompletedContracts));
         }
+        const storedCrewSize = localStorage.getItem(CREW_SIZE_STORAGE_KEY);
+        if (storedCrewSize) {
+          const parsedCrewSize = parseInt(storedCrewSize, 10);
+          if (!isNaN(parsedCrewSize) && parsedCrewSize >= 1) {
+            setCrewSize(parsedCrewSize);
+          }
+        }
       } catch (error) {
-        console.error("Error loading contracts from localStorage:", error);
-        toast({ variant: "destructive", title: "Load Error", description: "Could not load saved contracts." });
+        console.error("Error loading data from localStorage:", error);
+        setTimeout(() => toast({ variant: "destructive", title: "Load Error", description: "Could not load saved data." }),0);
       }
     }
   }, [isClient, toast]);
 
-  // Save active contracts to localStorage whenever they change
+  // Save active contracts to localStorage
   useEffect(() => {
     if (isClient) {
       try {
         localStorage.setItem(ACTIVE_CONTRACTS_STORAGE_KEY, JSON.stringify(activeContracts));
       } catch (error) {
         console.error("Error saving active contracts to localStorage:", error);
-        toast({ variant: "destructive", title: "Save Error", description: "Could not save active contracts." });
+        setTimeout(() => toast({ variant: "destructive", title: "Save Error", description: "Could not save active contracts." }), 0);
       }
     }
   }, [activeContracts, isClient, toast]);
 
-  // Save completed contracts to localStorage whenever they change
+  // Save completed contracts to localStorage
   useEffect(() => {
     if (isClient) {
       try {
         localStorage.setItem(COMPLETED_CONTRACTS_STORAGE_KEY, JSON.stringify(completedContracts));
       } catch (error) {
         console.error("Error saving completed contracts to localStorage:", error);
-        toast({ variant: "destructive", title: "Save Error", description: "Could not save completed contracts." });
+         setTimeout(() => toast({ variant: "destructive", title: "Save Error", description: "Could not save completed contracts." }), 0);
       }
     }
   }, [completedContracts, isClient, toast]);
+
+  // Save crew size to localStorage
+  useEffect(() => {
+    if (isClient) {
+      try {
+        localStorage.setItem(CREW_SIZE_STORAGE_KEY, String(crewSize));
+      } catch (error) {
+        console.error("Error saving crew size to localStorage:", error);
+        setTimeout(() => toast({ variant: "destructive", title: "Save Error", description: "Could not save crew size." }), 0);
+      }
+    }
+  }, [crewSize, isClient, toast]);
 
 
   const destinationsOverviewData = useMemo((): DestinationOverview[] => {
@@ -111,6 +134,11 @@ export default function HomePage() {
   const totalPendingPayout = useMemo(() => {
     return activeContracts.reduce((total, contract) => total + contract.reward, 0);
   }, [activeContracts]);
+
+  const payoutPerCrewMember = useMemo(() => {
+    if (crewSize < 1 || totalPendingPayout === 0) return 0;
+    return Math.floor(totalPendingPayout / crewSize);
+  }, [totalPendingPayout, crewSize]);
 
 
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
@@ -265,17 +293,18 @@ export default function HomePage() {
 
 const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) => {
     let taskChangeDescription = "";
-    let contractStatusChangeMessage: { title: string; description: string } | null = null;
+    let contractStatusChangeTitle: string | null = null;
+    let contractStatusChangeDescription: string | null = null;
     
     let nextActive = [...activeContracts];
     let nextCompleted = [...completedContracts];
 
     let contractToUpdate = nextActive.find(c => c.id === contractId);
-    let sourceList = 'active';
+    let sourceListWasActive = true;
 
     if (!contractToUpdate) {
         contractToUpdate = nextCompleted.find(c => c.id === contractId);
-        sourceList = 'completed';
+        sourceListWasActive = false;
     }
 
     if (!contractToUpdate) return;
@@ -292,28 +321,32 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     const updatedContract = { ...contractToUpdate, destinationTasks: updatedTasks };
     const allTasksNowComplete = updatedTasks.every(t => t.isComplete);
 
-    if (sourceList === 'active') {
+    if (sourceListWasActive) {
         if (allTasksNowComplete) {
             nextActive = nextActive.filter(c => c.id !== contractId);
-            if (!nextCompleted.find(c => c.id === contractId)) { // Avoid duplicates
+            // Ensure no duplicates when moving to completed
+            if (!nextCompleted.find(c => c.id === contractId)) {
                  nextCompleted = [...nextCompleted, updatedContract];
-            } else { 
-                 nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c); // Update if somehow already there
+            } else { // If somehow already there, update it
+                 nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
             }
-            contractStatusChangeMessage = { title: "Contract Complete", description: `Contract ${updatedContract.contractNumber} moved to Log Book.` };
+            contractStatusChangeTitle = "Contract Complete";
+            contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved to Log Book.`;
         } else {
             nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
         }
-    } else { // sourceList === 'completed'
+    } else { // Source list was completed
         if (!allTasksNowComplete) {
             nextCompleted = nextCompleted.filter(c => c.id !== contractId);
-             if (!nextActive.find(c => c.id === contractId)) { // Avoid duplicates
+            // Ensure no duplicates when moving back to active
+            if (!nextActive.find(c => c.id === contractId)) {
                 nextActive = [...nextActive, updatedContract];
-            } else { 
-                nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c); // Update if somehow already there
+            } else { // If somehow already there, update it
+                nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
             }
-            contractStatusChangeMessage = { title: "Contract Reopened", description: `Contract ${updatedContract.contractNumber} moved back to Active Contracts.` };
-        } else {
+            contractStatusChangeTitle = "Contract Reopened";
+            contractStatusChangeDescription = `Contract ${updatedContract.contractNumber} moved back to Active Contracts.`;
+        } else { // Still all complete, just update it in completed list
             nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
         }
     }
@@ -325,8 +358,8 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
         if (taskChangeDescription) {
             toast({ title: "Task Status Updated", description: taskChangeDescription });
         }
-        if (contractStatusChangeMessage) {
-            toast({ title: contractStatusChangeMessage.title, description: contractStatusChangeMessage.description });
+        if (contractStatusChangeTitle && contractStatusChangeDescription) {
+            toast({ title: contractStatusChangeTitle, description: contractStatusChangeDescription });
         }
     }, 0);
 
@@ -342,7 +375,6 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     
     const affectedContractIds = new Set<string>();
 
-    // Process updates on a temporary list derived from current state
     const potentiallyUpdatedActiveContracts = currentActiveContracts.map(contract => {
         let tasksModifiedInThisContract = false;
         const newDestinationTasks = contract.destinationTasks.map(task => {
@@ -378,9 +410,9 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
     let nextCompleted = [...currentCompletedContracts];
     newlyCompletedThisOperation.forEach(nc => {
-        if (!nextCompleted.find(c => c.id === nc.id)) { // Avoid duplicates in completed
+        if (!nextCompleted.find(c => c.id === nc.id)) {
             nextCompleted.push(nc);
-        } else { // If somehow already in completed, ensure it's the updated version
+        } else { 
             nextCompleted = nextCompleted.map(c => c.id === nc.id ? nc : c);
         }
     });
@@ -399,6 +431,13 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
 
 }, [activeContracts, completedContracts, toast]);
 
+  const handleCrewSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    let newSize = parseInt(event.target.value, 10);
+    if (isNaN(newSize) || newSize < 1) {
+      newSize = 1; // Default to 1 if input is invalid or less than 1
+    }
+    setCrewSize(newSize);
+  };
 
   if (!isClient) {
     return (
@@ -445,7 +484,36 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                 <p className="text-3xl font-bold text-primary">
                   {totalPendingPayout.toLocaleString()} <span className="text-lg font-normal text-muted-foreground">aUEC</span>
                 </p>
+                {activeContracts.length > 0 && crewSize > 1 && (
+                  <p className="text-md text-accent mt-1">
+                    <User className="inline mr-1 h-4 w-4" />
+                    {payoutPerCrewMember.toLocaleString()} aUEC per crew ({crewSize} members)
+                  </p>
+                )}
                  {activeContracts.length === 0 && <p className="text-sm text-muted-foreground mt-2">No active contracts.</p>}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-xl bg-card/90">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center">
+                  <Users className="mr-2 h-5 w-5 text-primary" />
+                  Crew Configuration
+                </CardTitle>
+                <CardDescription>Set your current crew size for payout division.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Label htmlFor="crewSizeInput" className="text-sm font-medium">Crew Size</Label>
+                  <Input
+                    id="crewSizeInput"
+                    type="number"
+                    value={crewSize}
+                    onChange={handleCrewSizeChange}
+                    min="1"
+                    className="w-full"
+                  />
+                </div>
               </CardContent>
             </Card>
             
@@ -512,3 +580,4 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
   );
 }
     
+
