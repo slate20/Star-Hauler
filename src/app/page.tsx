@@ -33,9 +33,18 @@ export default function HomePage() {
         ]);
         setApiDestinations(destinations);
         setApiCommodities(commodities);
+
+        if (destinations.length === 0 && commodities.length === 0) {
+          toast({ variant: "default", title: "API Data Notice", description: "Fetched data for destinations and commodities is empty. The API might not have data or there could be an issue. Check server logs for details." });
+        } else if (destinations.length === 0) {
+          toast({ variant: "default", title: "Destinations Empty", description: "Fetched data for destinations is empty. Check server logs." });
+        } else if (commodities.length === 0) {
+          toast({ variant: "default", title: "Commodities Empty", description: "Fetched data for commodities is empty. Check server logs." });
+        }
+
       } catch (error) {
-        console.error("Failed to load API data", error);
-        toast({ variant: "destructive", title: "API Error", description: "Could not load destinations or commodities." });
+        console.error("Failed to load API data from Page:", error);
+        toast({ variant: "destructive", title: "API Call Error", description: "Could not load destinations or commodities. See browser console for details." });
       } finally {
         setIsLoadingApiData(false);
       }
@@ -94,12 +103,12 @@ export default function HomePage() {
               .map(good =>
                 good.id === goodId ? { ...good, quantity: newQuantity } : good
               )
-              .filter(good => good.quantity > 0); 
+              .filter(good => good.quantity > 0);
             return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) 
+        .filter(contract => contract.goods.length > 0)
     );
     toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
   }, [toast]);
@@ -114,7 +123,7 @@ export default function HomePage() {
           }
           return contract;
         })
-        .filter(contract => contract.goods.length > 0) 
+        .filter(contract => contract.goods.length > 0)
     );
     toast({ title: "Good Removed", description: "The good has been removed from the contract." });
   }, [toast]);
@@ -200,7 +209,7 @@ export default function HomePage() {
               onUpdateGoodQuantity={handleUpdateGoodQuantity}
               onRemoveGood={handleRemoveGood}
               onAddGoodToContract={handleAddGoodToContract}
-              commodities={apiCommodities} // Pass commodities here
+              commodities={apiCommodities} 
               isLoadingCommodities={isLoadingApiData}
             />
             <QuantityTotalsDisplay contracts={contracts} />
