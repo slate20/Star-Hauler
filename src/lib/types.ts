@@ -1,34 +1,36 @@
 
 export interface Good {
-  id: string; // Unique ID for the good item within a contract's goods list
+  id: string; // Unique ID for the good item within a task's goods list
   productName: string;
   quantity: number;
 }
 
-export interface Contract {
-  id: string; // Unique ID for the contract (destination)
+export interface DestinationTask {
+  id: string; // Unique ID for this specific task
   destination: string;
   goods: Good[];
+  isComplete: boolean;
 }
 
-// Data structure for the old form input (still used by handleContractItemAdded)
-export interface ContractItemData {
-  destination: string;
+export interface ContractV2 {
+  id: string; // Unique ID for the overall contract
+  contractNumber: string; // User-friendly identifier for the contract
+  description?: string; // Optional overall contract description
+  destinationTasks: DestinationTask[];
+}
+
+// Types for the AddContractModal
+export interface ModalGoodItem { // Stays the same
   productName: string;
   quantity: number;
 }
 
-// Types for the new AddContractModal
-export interface ModalGoodItem {
-  productName: string;
-  quantity: number;
-}
-
-export interface ModalDestinationEntry {
+export interface ModalDestinationEntry { // Represents a task being built in the modal
   destination: string;
   goods: ModalGoodItem[];
 }
 
 export interface NewContractFormData { // This is what onContractSubmit will receive from the modal
+  contractNumber: string;
   destinationEntries: ModalDestinationEntry[];
 }

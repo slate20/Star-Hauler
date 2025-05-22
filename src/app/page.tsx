@@ -4,16 +4,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { CargoInventoryDisplay } from '@/components/cargo-inventory-display';
-import type { Contract, Good, ContractItemData, NewContractFormData, ModalDestinationEntry } from '@/lib/types';
+import type { ContractV2, DestinationTask, Good, NewContractFormData, ModalDestinationEntry } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddContractModal } from '@/components/add-contract-modal';
 import { useToast } from "@/hooks/use-toast";
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, BookOpen, History } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogBookDisplay } from '@/components/log-book-display'; // Placeholder for now
 
 export default function HomePage() {
-  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [activeContracts, setActiveContracts] = useState<ContractV2[]>([]);
+  const [completedContracts, setCompletedContracts] = useState<ContractV2[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isAddContractModalOpen, setIsAddContractModalOpen] = useState(false);
   const { toast } = useToast();
@@ -22,190 +25,246 @@ export default function HomePage() {
     setIsClient(true);
   }, []);
 
-  const handleContractItemAdded = useCallback((newItem: ContractItemData) => {
-    setContracts(prevContracts => {
-      const existingContractIndex = prevContracts.findIndex(c => c.destination.toLowerCase() === newItem.destination.toLowerCase());
-      let updatedContracts = [...prevContracts];
-
-      if (existingContractIndex > -1) {
-        const contractToUpdate = { ...updatedContracts[existingContractIndex] };
-        // Preserve original destination casing
-        contractToUpdate.destination = prevContracts[existingContractIndex].destination; 
-        
-        const existingGoodIndex = contractToUpdate.goods.findIndex(g => g.productName.toLowerCase() === newItem.productName.toLowerCase());
-
-        if (existingGoodIndex > -1) {
-          const goodToUpdate = { ...contractToUpdate.goods[existingGoodIndex] };
-          // Preserve original product name casing
-          goodToUpdate.productName = contractToUpdate.goods[existingGoodIndex].productName;
-          goodToUpdate.quantity += newItem.quantity;
-          contractToUpdate.goods = [
-            ...contractToUpdate.goods.slice(0, existingGoodIndex),
-            goodToUpdate,
-            ...contractToUpdate.goods.slice(existingGoodIndex + 1),
-          ].sort((a,b) => a.productName.localeCompare(b.productName));
-        } else {
-          const newGood: Good = {
-            id: crypto.randomUUID(),
-            productName: newItem.productName,
-            quantity: newItem.quantity,
-          };
-          contractToUpdate.goods = [...contractToUpdate.goods, newGood].sort((a,b) => a.productName.localeCompare(b.productName));
-        }
-        updatedContracts[existingContractIndex] = contractToUpdate;
-      } else {
-        const newContract: Contract = {
-          id: crypto.randomUUID(),
-          destination: newItem.destination,
-          goods: [{
-            id: crypto.randomUUID(),
-            productName: newItem.productName,
-            quantity: newItem.quantity,
-          }],
-        };
-        updatedContracts = [...updatedContracts, newContract];
-      }
-      return updatedContracts.sort((a,b) => a.destination.localeCompare(b.destination));
-    });
-     toast({
-        title: "Contract Updated",
-        description: `${newItem.quantity} unit(s) of ${newItem.productName} processed for ${newItem.destination}.`,
-      });
-  }, [toast]);
-  
+  // Simplified contract processing, modal handles complex input
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
-    let itemsProcessed = 0;
     let hasFatalError = false;
+    if (!data.contractNumber.trim()) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "Contract Number/ID cannot be empty." });
+      return; // Stop processing if contract number is missing
+    }
+    if (data.destinationEntries.length === 0) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "At least one destination task must be added to the contract." });
+      return; // Stop processing if no destination entries
+    }
 
-    data.destinationEntries.forEach((destinationEntry: ModalDestinationEntry) => {
-      if (hasFatalError) return;
+    const newDestinationTasks: DestinationTask[] = data.destinationEntries.map(entry => {
+      if (hasFatalError) return null; // Skip if error occurred in previous entry
 
-      if (!destinationEntry.destination.trim()) {
-        toast({ variant: "destructive", title: "Invalid Input", description: "Destination cannot be empty for one or more entries. Submission halted." });
+      if (!entry.destination.trim()) {
+        toast({ variant: "destructive", title: "Invalid Input", description: `Destination cannot be empty for one or more tasks in contract ${data.contractNumber}. Submission halted.` });
         hasFatalError = true;
-        return;
+        return null;
       }
-      if (destinationEntry.goods.length === 0) {
-        toast({ variant: "destructive", title: "Invalid Input", description: `At least one good must be added to the contract for ${destinationEntry.destination}. Submission halted.` });
+      if (entry.goods.length === 0) {
+         toast({ variant: "destructive", title: "Invalid Input", description: `At least one good must be added to task for ${entry.destination} in contract ${data.contractNumber}. Submission halted.` });
         hasFatalError = true;
-        return;
+        return null;
       }
       
-      let goodsForThisDestinationProcessed = 0;
-      destinationEntry.goods.forEach(good => {
-        if (hasFatalError) return;
+      let validGoodsForTask = 0;
+      const taskGoods: Good[] = entry.goods.map(good => {
+        if (hasFatalError) return null;
 
         if (good.productName.trim() && good.quantity > 0) {
-          handleContractItemAdded({
-            destination: destinationEntry.destination,
+          validGoodsForTask++;
+          return {
+            id: crypto.randomUUID(),
             productName: good.productName,
             quantity: good.quantity,
-          });
-          itemsProcessed++;
-          goodsForThisDestinationProcessed++;
+          };
         } else if (good.productName.trim() && good.quantity <= 0) {
-           toast({ variant: "destructive", title: "Invalid Quantity", description: `Quantity for ${good.productName} for ${destinationEntry.destination} must be positive. Submission halted.`});
+           toast({ variant: "destructive", title: "Invalid Quantity", description: `Quantity for ${good.productName} (Task: ${entry.destination}, Contract: ${data.contractNumber}) must be positive. Submission halted.`});
            hasFatalError = true;
         } else if (!good.productName.trim() && good.quantity > 0) {
-           toast({ variant: "destructive", title: "Invalid Product Name", description: `Product name for an item for ${destinationEntry.destination} cannot be empty. Submission halted.`});
+           toast({ variant: "destructive", title: "Invalid Product Name", description: `Product name for an item (Task: ${entry.destination}, Contract: ${data.contractNumber}) cannot be empty. Submission halted.`});
            hasFatalError = true;
         }
-      });
-      if (goodsForThisDestinationProcessed === 0 && !hasFatalError && destinationEntry.goods.length > 0) {
-        toast({ variant: "warning", title: "No Valid Goods", description: `No valid goods processed for ${destinationEntry.destination}.` });
+        return null;
+      }).filter(g => g !== null) as Good[];
+
+      if (hasFatalError) return null;
+      if (validGoodsForTask === 0 && entry.goods.length > 0) {
+         toast({ variant: "warning", title: "No Valid Goods", description: `No valid goods processed for task ${entry.destination} in contract ${data.contractNumber}.` });
+         // Don't make this a fatal error, an empty task might be intentional for later editing
       }
 
-    });
 
-    if (itemsProcessed > 0 && !hasFatalError) {
+      return {
+        id: crypto.randomUUID(),
+        destination: entry.destination,
+        goods: taskGoods,
+        isComplete: false,
+      };
+    }).filter(task => task !== null) as DestinationTask[];
+
+    if (hasFatalError) {
+      return; // Modal remains open if fatal error
+    }
+
+    if (newDestinationTasks.length === 0 && data.destinationEntries.length > 0) {
+      toast({ variant: "warning", title: "No Tasks Processed", description: "No valid destination tasks were created. Please check entries." });
+      return; // Modal remains open
+    }
+    
+    if (newDestinationTasks.length > 0) {
+      const newContract: ContractV2 = {
+        id: crypto.randomUUID(),
+        contractNumber: data.contractNumber,
+        description: "", // Can add a description field to modal later
+        destinationTasks: newDestinationTasks,
+      };
+      setActiveContracts(prev => [...prev, newContract].sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+      toast({ title: "Contract Logged", description: `Contract ${data.contractNumber} with ${newDestinationTasks.length} task(s) has been added.` });
       setIsAddContractModalOpen(false); // Close modal on successful submission
-    } else if (!hasFatalError) { 
-       toast({ variant: "warning", title: "No Items Processed", description: "Please ensure all entries are valid and have items." });
+    } else if (!hasFatalError && data.destinationEntries.length > 0){
+       toast({ variant: "warning", title: "No Tasks Processed", description: "Please ensure all entries are valid and have items." });
+    } else if (!hasFatalError && data.destinationEntries.length === 0) {
+      // This case is already handled by the check at the start of the function.
     }
-    // If hasFatalError, modal remains open for correction by not calling setIsAddContractModalOpen(false)
-  }, [handleContractItemAdded, toast]);
 
-
-  const handleUpdateGoodQuantity = useCallback((contractId: string, goodId: string, newQuantity: number) => {
-    setContracts(prevContracts =>
-      prevContracts
-        .map(contract => {
-          if (contract.id === contractId) {
-            const updatedGoods = contract.goods
-              .map(good =>
-                good.id === goodId ? { ...good, quantity: newQuantity } : good
-              )
-              .filter(good => good.quantity > 0); 
-            return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
-          }
-          return contract;
-        })
-        .filter(contract => contract.goods.length > 0) 
-    );
-    toast({ title: "Quantity Updated", description: "Good quantity has been adjusted." });
   }, [toast]);
 
-  const handleRemoveGood = useCallback((contractId: string, goodId: string) => {
-    setContracts(prevContracts =>
-      prevContracts
-        .map(contract => {
-          if (contract.id === contractId) {
-            const updatedGoods = contract.goods.filter(good => good.id !== goodId);
-            return { ...contract, goods: updatedGoods };
-          }
-          return contract;
-        })
-        .filter(contract => contract.goods.length > 0) 
-    );
-    toast({ title: "Good Removed", description: "The good has been removed from the contract." });
-  }, [toast]);
 
-  const handleAddGoodToContract = useCallback((contractId: string, goodData: { productName: string; quantity: number }) => {
-    if (!goodData.productName.trim() || goodData.quantity <= 0) {
-      toast({ variant: "destructive", title: "Invalid Input", description: "Product name cannot be empty and quantity must be positive." });
-      return;
-    }
-    const targetContract = contracts.find(c => c.id === contractId);
-    if (!targetContract) {
-        toast({variant: "destructive", title: "Error", description: "Contract not found."});
-        return;
-    }
-
-    setContracts(prevContracts =>
+  const handleUpdateGoodQuantity = useCallback((contractId: string, taskId: string, goodId: string, newQuantity: number) => {
+    setActiveContracts(prevContracts =>
       prevContracts.map(contract => {
         if (contract.id === contractId) {
-          const existingGoodIndex = contract.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
-          let updatedGoods;
-          if (existingGoodIndex > -1) {
-            updatedGoods = contract.goods.map((g, index) =>
-              index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
-            );
-          } else {
-            const newGood: Good = {
-              id: crypto.randomUUID(),
-              productName: goodData.productName,
-              quantity: goodData.quantity,
-            };
-            updatedGoods = [...contract.goods, newGood];
-          }
-          return { ...contract, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
+          return {
+            ...contract,
+            destinationTasks: contract.destinationTasks.map(task => {
+              if (task.id === taskId) {
+                const updatedGoods = task.goods
+                  .map(good =>
+                    good.id === goodId ? { ...good, quantity: newQuantity } : good
+                  )
+                  .filter(good => good.quantity > 0) // Remove good if quantity is 0 or less
+                  .sort((a,b) => a.productName.localeCompare(b.productName));
+                return { ...task, goods: updatedGoods };
+              }
+              return task;
+            }),
+          };
         }
         return contract;
       })
     );
-    toast({ title: "Good Added", description: `${goodData.quantity} SCU of ${goodData.productName} added to ${targetContract.destination}.` });
-  }, [contracts, toast]);
+    toast({ title: "Quantity Updated", description: "Good quantity has been adjusted for the task." });
+  }, [toast]);
 
-  const handleCompleteContract = useCallback((contractId: string) => {
-    const contractToComplete = contracts.find(c => c.id === contractId);
-    if (contractToComplete) {
-      setContracts(prevContracts => prevContracts.filter(c => c.id !== contractId));
-      toast({
-        title: "Contract Completed",
-        description: `Contract for ${contractToComplete.destination} has been removed from active contracts.`,
-      });
+  const handleRemoveGood = useCallback((contractId: string, taskId: string, goodId: string) => {
+    setActiveContracts(prevContracts =>
+      prevContracts.map(contract => {
+        if (contract.id === contractId) {
+          return {
+            ...contract,
+            destinationTasks: contract.destinationTasks.map(task => {
+              if (task.id === taskId) {
+                const updatedGoods = task.goods.filter(good => good.id !== goodId);
+                return { ...task, goods: updatedGoods };
+              }
+              return task;
+            }),
+          };
+        }
+        return contract;
+      })
+      // Note: We don't filter out empty tasks or contracts here, that's handled by task completion logic
+    );
+    toast({ title: "Good Removed", description: "The good has been removed from the task." });
+  }, [toast]);
+
+  const handleAddGoodToTask = useCallback((contractId: string, taskId: string, goodData: { productName: string; quantity: number }) => {
+    if (!goodData.productName.trim() || goodData.quantity <= 0) {
+      toast({ variant: "destructive", title: "Invalid Input", description: "Product name cannot be empty and quantity must be positive." });
+      return;
     }
-  }, [contracts, toast]);
+    
+    let taskDestination = "";
+
+    setActiveContracts(prevContracts =>
+      prevContracts.map(contract => {
+        if (contract.id === contractId) {
+          return {
+            ...contract,
+            destinationTasks: contract.destinationTasks.map(task => {
+              if (task.id === taskId) {
+                taskDestination = task.destination; // For toast message
+                const existingGoodIndex = task.goods.findIndex(g => g.productName.toLowerCase() === goodData.productName.toLowerCase());
+                let updatedGoods;
+                if (existingGoodIndex > -1) {
+                  updatedGoods = task.goods.map((g, index) =>
+                    index === existingGoodIndex ? { ...g, quantity: g.quantity + goodData.quantity } : g
+                  );
+                } else {
+                  const newGood: Good = {
+                    id: crypto.randomUUID(),
+                    productName: goodData.productName,
+                    quantity: goodData.quantity,
+                  };
+                  updatedGoods = [...task.goods, newGood];
+                }
+                return { ...task, goods: updatedGoods.sort((a,b) => a.productName.localeCompare(b.productName)) };
+              }
+              return task;
+            }),
+          };
+        }
+        return contract;
+      })
+    );
+    if (taskDestination) {
+      toast({ title: "Good Added", description: `${goodData.quantity} SCU of ${goodData.productName} added to task for ${taskDestination}.` });
+    } else {
+      toast({ title: "Good Added", description: `${goodData.quantity} SCU of ${goodData.productName} added to task.` });
+    }
+  }, [toast]);
+
+  const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) => {
+    setActiveContracts(prevActive => {
+      let contractToMove: ContractV2 | null = null;
+      const updatedActive = prevActive.map(c => {
+        if (c.id === contractId) {
+          const updatedTasks = c.destinationTasks.map(t => 
+            t.id === taskId ? { ...t, isComplete: !t.isComplete } : t
+          );
+          const allTasksComplete = updatedTasks.every(t => t.isComplete);
+          if (allTasksComplete) {
+            contractToMove = { ...c, destinationTasks: updatedTasks };
+            return null; // Will be filtered out from active
+          }
+          return { ...c, destinationTasks: updatedTasks };
+        }
+        return c;
+      }).filter(c => c !== null) as ContractV2[];
+
+      if (contractToMove) {
+        setCompletedContracts(prevCompleted => 
+            [...prevCompleted, contractToMove!].sort((a,b) => a.contractNumber.localeCompare(b.contractNumber))
+        );
+        toast({ title: "Contract Complete", description: `Contract ${contractToMove.contractNumber} moved to Log Book.`});
+      } else {
+        // Check if a task was marked incomplete on a completed contract
+         setCompletedContracts(prevCompleted => {
+            const contractReopened = prevCompleted.find(cc => cc.id === contractId);
+            if (contractReopened) {
+                const updatedTasks = contractReopened.destinationTasks.map(t => 
+                    t.id === taskId ? { ...t, isComplete: !t.isComplete } : t
+                );
+                 const updatedReopenedContract = {...contractReopened, destinationTasks: updatedTasks};
+                // Add it back to activeContracts
+                setActiveContracts(prevActiveAgain => 
+                    [...prevActiveAgain, updatedReopenedContract].sort((a,b) => a.contractNumber.localeCompare(b.contractNumber))
+                );
+                toast({ title: "Contract Reopened", description: `Contract ${updatedReopenedContract.contractNumber} moved back to Active Contracts.`});
+                return prevCompleted.filter(cc => cc.id !== contractId); // Remove from completed
+            }
+            return prevCompleted;
+        });
+        if(!contractToMove && !activeContracts.find(c => c.id === contractId)) { // if it wasn't moved to completed and not found in active (must have been in completed)
+            const targetTask = completedContracts.find(c=>c.id === contractId)?.destinationTasks.find(t=>t.id === taskId);
+            if (targetTask) { // This implies it was reopened
+                 toast({ title: "Task Updated", description: `Task for ${targetTask.destination} status changed.`});
+            }
+        } else if (!contractToMove) { // if it's still in active contracts
+             const targetTask = activeContracts.find(c=>c.id === contractId)?.destinationTasks.find(t=>t.id === taskId);
+             if (targetTask) {
+                 toast({ title: "Task Updated", description: `Task for ${targetTask.destination} status changed.`});
+             }
+        }
+      }
+      return updatedActive;
+    });
+  }, [toast, activeContracts, completedContracts]);
 
 
   if (!isClient) {
@@ -230,27 +289,48 @@ export default function HomePage() {
           <div className="lg:col-span-2 lg:sticky lg:top-28">
             <Card className="shadow-xl bg-card/90">
               <CardHeader>
-                <CardTitle className="text-2xl">New Haul</CardTitle>
-                <CardDescription>Log new hauling contracts.</CardDescription>
+                <CardTitle className="text-2xl">New Contract</CardTitle>
+                <CardDescription>Log a new hauling contract with all its destinations and goods.</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button onClick={() => setIsAddContractModalOpen(true)} className="w-full">
                   <PlusCircle className="mr-2 h-5 w-5" />
-                  Log New Haul
+                  Log New Contract
                 </Button>
               </CardContent>
             </Card>
+            <div className="mt-8">
+              <CargoInventoryDisplay contracts={activeContracts} />
+            </div>
           </div>
 
           <div className="lg:col-span-5 space-y-8">
-             <ActiveContractsDisplay 
-              contracts={contracts} 
-              onUpdateGoodQuantity={handleUpdateGoodQuantity}
-              onRemoveGood={handleRemoveGood}
-              onAddGoodToContract={handleAddGoodToContract}
-              onCompleteContract={handleCompleteContract}
-            />
-            <CargoInventoryDisplay contracts={contracts} />
+            <Tabs defaultValue="active" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="active">
+                  <History className="mr-2 h-5 w-5" /> Active Contracts ({activeContracts.length})
+                </TabsTrigger>
+                <TabsTrigger value="logbook">
+                  <BookOpen className="mr-2 h-5 w-5" /> Log Book ({completedContracts.length})
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="active">
+                <ActiveContractsDisplay 
+                  contracts={activeContracts} 
+                  onUpdateGoodQuantity={handleUpdateGoodQuantity}
+                  onRemoveGood={handleRemoveGood}
+                  onAddGoodToTask={handleAddGoodToTask}
+                  onToggleTaskStatus={handleToggleTaskStatus}
+                />
+              </TabsContent>
+              <TabsContent value="logbook">
+                 <LogBookDisplay 
+                  contracts={completedContracts}
+                  onToggleTaskStatus={handleToggleTaskStatus} // Allow reopening tasks/contracts
+                  // Read-only goods for completed, so no goods handlers passed
+                 />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </main>

@@ -15,10 +15,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Form } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, XCircle, MapPin } from 'lucide-react';
-import { DestinationEntryFields } from './destination-entry-fields';
+import { Send, XCircle, MapPin, FileText } from 'lucide-react';
+import { DestinationEntryFields } from './destination-entry-fields'; // This component handles goods for a destination
 
 const goodItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -27,11 +28,12 @@ const goodItemSchema = z.object({
 
 const destinationEntrySchema = z.object({
   destination: z.string().min(1, "Destination is required"),
-  goods: z.array(goodItemSchema).min(1, "At least one good must be added per destination"),
+  goods: z.array(goodItemSchema).min(1, "At least one good must be added per destination task"),
 });
 
 const newContractFormSchema = z.object({
-  destinationEntries: z.array(destinationEntrySchema).min(1, "At least one destination entry is required"),
+  contractNumber: z.string().min(1, "Contract Number/ID is required"),
+  destinationEntries: z.array(destinationEntrySchema).min(1, "At least one destination task is required"),
 });
 
 type AddContractModalProps = {
@@ -46,6 +48,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
   const form = useForm<NewContractFormData>({
     resolver: zodResolver(newContractFormSchema),
     defaultValues: {
+      contractNumber: `CN-${Date.now().toString().slice(-6)}`, // Example default contract number
       destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
     },
   });
@@ -58,6 +61,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
   useEffect(() => {
     if (!isOpen) {
       form.reset({
+        contractNumber: `CN-${Date.now().toString().slice(-6)}`,
         destinationEntries: [{ destination: "", goods: [{ productName: "", quantity: 1 }] }],
       });
     }
@@ -65,35 +69,55 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
 
   const onSubmit = (data: NewContractFormData) => {
     onContractSubmit(data);
+    // Form reset is handled by useEffect watching `isOpen`
   };
 
   const handleCancel = () => {
-    onOpenChange(false);
+    onOpenChange(false); // This will trigger the useEffect for form reset
   };
   
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Log New Hauling Contract(s)</DialogTitle>
+          <DialogTitle>Log New Hauling Contract</DialogTitle>
           <DialogDescription>
-            Enter one or more destinations, and the list of goods for each.
+            Enter contract details, including all destination tasks and their respective goods.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form
             id={ADD_CONTRACT_FORM_ID}
             onSubmit={form.handleSubmit(onSubmit)}
-            className="flex-1 flex flex-col min-h-0" // Removed overflow-hidden
+            className="flex-1 flex flex-col min-h-0"
           >
-            <ScrollArea className="flex-1 overflow-y-auto"> {/* Added overflow-y-auto */}
+            <ScrollArea className="flex-1 overflow-y-auto">
               <div className="space-y-6 p-4">
+                <FormField
+                  control={form.control}
+                  name="contractNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg">Contract Number/ID</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <FileText className="h-5 w-5 mr-2 text-muted-foreground" />
+                          <Input placeholder="e.g., CX-12345 or Client Name" {...field} className="text-base"/>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormLabel className="text-lg block pt-2">Destination Tasks:</FormLabel>
                 {destinationFields.map((destField, destIndex) => (
                   <DestinationEntryFields
                     key={destField.id}
                     destIndex={destIndex}
                     removeDestination={removeDestination}
                     canRemoveDestination={destinationFields.length > 1}
+                    // Pass form control for nested field array
                   />
                 ))}
                 <Button
@@ -103,7 +127,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
                   className="mt-4 w-full"
                 >
                   <MapPin className="mr-2 h-5 w-5" />
-                  Add Another Destination Entry
+                  Add Another Destination Task
                 </Button>
                 {form.formState.errors.destinationEntries?.message && (
                     <p className="text-sm font-medium text-destructive mt-2 text-center">
@@ -124,7 +148,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onOp
              <XCircle className="mr-2 h-4 w-4" /> Cancel
           </Button>
           <Button type="submit" form={ADD_CONTRACT_FORM_ID}>
-            <Send className="mr-2 h-4 w-4" /> Submit All Contracts
+            <Send className="mr-2 h-4 w-4" /> Submit Contract
           </Button>
         </DialogFooter>
       </DialogContent>
