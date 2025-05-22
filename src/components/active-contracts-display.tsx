@@ -2,11 +2,12 @@
 "use client";
 
 import type React from 'react';
-import type { ContractV2, DestinationTask } from '@/lib/types'; 
+import type { ContractV2 } from '@/lib/types'; 
 import { DestinationTaskCard } from './destination-task-card'; 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { FileText, PackageSearch } from 'lucide-react';
+import { FileText, PackageSearch, Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type ActiveContractsDisplayProps = {
   contracts: ContractV2[];
@@ -14,6 +15,7 @@ type ActiveContractsDisplayProps = {
   onRemoveGood: (contractId: string, taskId: string, goodId: string) => void;
   onAddGoodToTask: (contractId: string, taskId: string, goodData: { productName: string; quantity: number }) => void;
   onToggleTaskStatus: (contractId: string, taskId: string) => void;
+  onOpenEditModal: (contract: ContractV2) => void;
 };
 
 export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({ 
@@ -22,6 +24,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
   onRemoveGood, 
   onAddGoodToTask,
   onToggleTaskStatus,
+  onOpenEditModal,
 }) => {
   
   if (!contracts || contracts.length === 0) {
@@ -57,7 +60,7 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
             const totalTasks = contract.destinationTasks.length;
             const rewardFormatted = contract.reward.toLocaleString();
             return (
-              <AccordionItem key={contract.id} value={contract.id} className="border bg-card/80 rounded-lg shadow-sm">
+              <AccordionItem key={contract.id} value={contract.id} className="border bg-card/80 rounded-lg shadow-sm group">
                 <AccordionTrigger className="p-4 hover:no-underline">
                   <div className="flex flex-col items-start text-left flex-grow gap-1">
                     <div className="flex items-center gap-3">
@@ -68,8 +71,22 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
                        Reward: {rewardFormatted} aUEC
                     </div>
                   </div>
-                  <div className="text-sm text-muted-foreground ml-2 text-right flex-shrink-0">
-                    {completedTasks}/{totalTasks} tasks complete
+                  <div className="flex items-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 mr-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation(); 
+                        onOpenEditModal(contract);
+                      }}
+                      aria-label={`Edit contract ${contract.contractNumber}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <div className="text-sm text-muted-foreground ml-2 text-right flex-shrink-0">
+                      {completedTasks}/{totalTasks} tasks complete
+                    </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="p-4 pt-0">
@@ -99,3 +116,4 @@ export const ActiveContractsDisplay: React.FC<ActiveContractsDisplayProps> = ({
     </Card>
   );
 };
+

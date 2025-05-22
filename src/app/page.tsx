@@ -4,11 +4,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ActiveContractsDisplay } from '@/components/active-contracts-display';
 import { CargoInventoryDisplay } from '@/components/cargo-inventory-display';
-import type { ContractV2, DestinationTask, Good, NewContractFormData, ModalDestinationEntry, DestinationOverview, AggregatedGoodForDestination } from '@/lib/types';
+import type { ContractV2, DestinationTask, Good, NewContractFormData, EditContractFormData, ModalDestinationEntry, DestinationOverview, AggregatedGoodForDestination } from '@/lib/types';
 import { SpaceHaulerLogo } from '@/components/space-hauler-logo';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AddContractModal } from '@/components/add-contract-modal';
+import { EditContractModal } from '@/components/edit-contract-modal';
 import { useToast } from "@/hooks/use-toast";
 import { PlusCircle, BookOpen, History, Globe, Coins } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +24,8 @@ export default function HomePage() {
   const [completedContracts, setCompletedContracts] = useState<ContractV2[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isAddContractModalOpen, setIsAddContractModalOpen] = useState(false);
+  const [isEditContractModalOpen, setIsEditContractModalOpen] = useState(false);
+  const [contractToEdit, setContractToEdit] = useState<ContractV2 | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -111,38 +114,29 @@ export default function HomePage() {
 
 
   const handleModalContractSubmit = useCallback((data: NewContractFormData) => {
-    // Form validation is now primarily handled by react-hook-form with Zod in AddContractModal.
-    // This function assumes data is valid as per the schema.
-
     const newDestinationTasks: DestinationTask[] = data.destinationEntries.flatMap(entry => {
-      // Ensure the entry itself and its goods are valid (though Zod should have caught this)
       if (!entry.destination.trim() || entry.goods.length === 0) {
-        return []; // Skip this entry if it's fundamentally flawed
+        return [];
       }
+      const taskGoods: Good[] = entry.goods.map(good => ({
+        id: crypto.randomUUID(),
+        productName: good.productName,
+        quantity: good.quantity
+      })).filter(g => g.productName.trim() && g.quantity > 0)
+         .sort((a,b) => a.productName.localeCompare(b.productName));
 
-      const taskGoods: Good[] = entry.goods.map(good => {
-        // Again, Zod should ensure productName is present and quantity is positive
-        return { id: crypto.randomUUID(), productName: good.productName, quantity: good.quantity };
-      }).filter(g => g !== null) as Good[]; // filter might be redundant if Zod is strict
-
-      if (taskGoods.length === 0) {
-        return []; // Skip if no valid goods after mapping
-      }
+      if (taskGoods.length === 0) return [];
 
       return [{
         id: crypto.randomUUID(),
         destination: entry.destination,
-        goods: taskGoods.sort((a,b) => a.productName.localeCompare(b.productName)),
+        goods: taskGoods,
         isComplete: false,
       }];
     });
 
     if (newDestinationTasks.length === 0) {
-      // This case implies all entries in data.destinationEntries were invalid or empty.
-      // Zod schema requires at least one destinationEntry, and each must have goods.
-      // So, if this point is reached with newDestinationTasks empty, it's an unexpected state
-      // or the form was submitted bypassing client-side Zod (e.g. if JS disabled, though unlikely for this app type).
-      setTimeout(() => toast({ variant: "destructive", title: "Processing Error", description: "No valid tasks could be created from the submission. Please check form entries." }), 0);
+      setTimeout(() => toast({ variant: "destructive", title: "Input Error", description: "Contract must have at least one valid destination task with goods." }), 0);
       return;
     }
     
@@ -150,7 +144,6 @@ export default function HomePage() {
       id: crypto.randomUUID(),
       contractNumber: data.contractNumber,
       reward: data.rewardK * 1000, 
-      description: "", 
       destinationTasks: newDestinationTasks.sort((a,b) => a.destination.localeCompare(b.destination)),
     };
 
@@ -158,6 +151,26 @@ export default function HomePage() {
     setTimeout(() => toast({ title: "Contract Logged", description: `Contract ${data.contractNumber} with ${newDestinationTasks.length} task(s) added.` }), 0);
     setIsAddContractModalOpen(false); 
     
+  }, [toast]);
+
+  const handleOpenEditModal = useCallback((contract: ContractV2) => {
+    setContractToEdit(contract);
+    setIsEditContractModalOpen(true);
+  }, []);
+
+  const handleContractUpdate = useCallback((updatedData: EditContractFormData) => {
+    setActiveContracts(prevContracts =>
+      prevContracts.map(c =>
+        c.id === updatedData.id
+          ? { ...c, contractNumber: updatedData.contractNumber, reward: updatedData.rewardK * 1000 }
+          : c
+      ).sort((a,b) => a.contractNumber.localeCompare(b.contractNumber))
+    );
+    setTimeout(() => {
+        toast({ title: "Contract Updated", description: `Contract ${updatedData.contractNumber} has been updated.` });
+    }, 0);
+    setIsEditContractModalOpen(false);
+    setContractToEdit(null);
   }, [toast]);
 
 
@@ -254,18 +267,18 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     let taskChangeDescription = "";
     let contractStatusChangeMessage: { title: string; description: string } | null = null;
     
-    const currentActiveContracts = [...activeContracts];
-    const currentCompletedContracts = [...completedContracts];
+    let nextActive = [...activeContracts];
+    let nextCompleted = [...completedContracts];
 
-    let contractToUpdate = currentActiveContracts.find(c => c.id === contractId);
+    let contractToUpdate = nextActive.find(c => c.id === contractId);
     let sourceList = 'active';
 
     if (!contractToUpdate) {
-        contractToUpdate = currentCompletedContracts.find(c => c.id === contractId);
+        contractToUpdate = nextCompleted.find(c => c.id === contractId);
         sourceList = 'completed';
     }
 
-    if (!contractToUpdate) return; // Should not happen
+    if (!contractToUpdate) return;
 
     const updatedTasks = contractToUpdate.destinationTasks.map(task => {
         if (task.id === taskId) {
@@ -279,36 +292,29 @@ const handleToggleTaskStatus = useCallback((contractId: string, taskId: string) 
     const updatedContract = { ...contractToUpdate, destinationTasks: updatedTasks };
     const allTasksNowComplete = updatedTasks.every(t => t.isComplete);
 
-    let nextActive = [...activeContracts];
-    let nextCompleted = [...completedContracts];
-
     if (sourceList === 'active') {
         if (allTasksNowComplete) {
-            // Move from active to completed
-            nextActive = currentActiveContracts.filter(c => c.id !== contractId);
-            if (!currentCompletedContracts.find(c => c.id === contractId)) {
-                 nextCompleted = [...currentCompletedContracts, updatedContract];
-            } else { // Already in completed (edge case), just update it
-                 nextCompleted = currentCompletedContracts.map(c => c.id === contractId ? updatedContract : c);
+            nextActive = nextActive.filter(c => c.id !== contractId);
+            if (!nextCompleted.find(c => c.id === contractId)) { // Avoid duplicates
+                 nextCompleted = [...nextCompleted, updatedContract];
+            } else { 
+                 nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c); // Update if somehow already there
             }
             contractStatusChangeMessage = { title: "Contract Complete", description: `Contract ${updatedContract.contractNumber} moved to Log Book.` };
         } else {
-            // Update in active
-            nextActive = currentActiveContracts.map(c => c.id === contractId ? updatedContract : c);
+            nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c);
         }
     } else { // sourceList === 'completed'
         if (!allTasksNowComplete) {
-            // Move from completed to active
-            nextCompleted = currentCompletedContracts.filter(c => c.id !== contractId);
-             if (!currentActiveContracts.find(c => c.id === contractId)) {
-                nextActive = [...currentActiveContracts, updatedContract];
-            } else { // Already in active (edge case), just update it
-                nextActive = currentActiveContracts.map(c => c.id === contractId ? updatedContract : c);
+            nextCompleted = nextCompleted.filter(c => c.id !== contractId);
+             if (!nextActive.find(c => c.id === contractId)) { // Avoid duplicates
+                nextActive = [...nextActive, updatedContract];
+            } else { 
+                nextActive = nextActive.map(c => c.id === contractId ? updatedContract : c); // Update if somehow already there
             }
             contractStatusChangeMessage = { title: "Contract Reopened", description: `Contract ${updatedContract.contractNumber} moved back to Active Contracts.` };
         } else {
-             // Update in completed (all tasks still complete, perhaps a good was re-added and then task immediately marked complete again)
-            nextCompleted = currentCompletedContracts.map(c => c.id === contractId ? updatedContract : c);
+            nextCompleted = nextCompleted.map(c => c.id === contractId ? updatedContract : c);
         }
     }
     
@@ -331,13 +337,13 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
     let anyTasksMarkedThisOperation = false;
     const contractsThatBecameCompleteMessages: Array<{ title: string; description: string }> = [];
     
-    let updatedActiveContracts = [...activeContracts];
-    let updatedCompletedContracts = [...completedContracts];
-
+    let currentActiveContracts = [...activeContracts];
+    let currentCompletedContracts = [...completedContracts];
+    
     const affectedContractIds = new Set<string>();
 
-    // Pass 1: Mark tasks as complete in a temporary list
-    const processedActiveContracts = updatedActiveContracts.map(contract => {
+    // Process updates on a temporary list derived from current state
+    const potentiallyUpdatedActiveContracts = currentActiveContracts.map(contract => {
         let tasksModifiedInThisContract = false;
         const newDestinationTasks = contract.destinationTasks.map(task => {
             if (task.destination === destinationName && !task.isComplete) {
@@ -348,44 +354,39 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
             }
             return task;
         });
-        if (tasksModifiedInThisContract) {
-            return { ...contract, destinationTasks: newDestinationTasks };
-        }
-        return contract;
+        return tasksModifiedInThisContract ? { ...contract, destinationTasks: newDestinationTasks } : contract;
     });
     
-    // Pass 2: Determine which contracts move
-    const stillActive: ContractV2[] = [];
-    const newlyCompletedThisOp: ContractV2[] = [];
+    const nextActive: ContractV2[] = [];
+    const newlyCompletedThisOperation: ContractV2[] = [];
 
-    processedActiveContracts.forEach(contract => {
-        if (affectedContractIds.has(contract.id)) { // Only process contracts that had tasks changed
+    potentiallyUpdatedActiveContracts.forEach(contract => {
+        if (affectedContractIds.has(contract.id)) { 
             if (contract.destinationTasks.every(t => t.isComplete)) {
-                if (!updatedCompletedContracts.find(c => c.id === contract.id)) { // Avoid duplicates in target
-                    newlyCompletedThisOp.push(contract);
-                    contractsThatBecameCompleteMessages.push({
-                        title: "Contract Complete",
-                        description: `Contract ${contract.contractNumber} moved to Log Book.`
-                    });
-                }
+                newlyCompletedThisOperation.push(contract);
+                 contractsThatBecameCompleteMessages.push({
+                    title: "Contract Complete",
+                    description: `Contract ${contract.contractNumber} moved to Log Book.`
+                });
             } else {
-                stillActive.push(contract);
+                nextActive.push(contract);
             }
         } else {
-             stillActive.push(contract); // Unaffected contracts remain active
+             nextActive.push(contract); 
         }
     });
 
-    // Update main completed list, ensuring no duplicates from prior state
-    let finalCompletedContracts = [...updatedCompletedContracts];
-    newlyCompletedThisOp.forEach(nc => {
-        if (!finalCompletedContracts.find(fc => fc.id === nc.id)) {
-            finalCompletedContracts.push(nc);
+    let nextCompleted = [...currentCompletedContracts];
+    newlyCompletedThisOperation.forEach(nc => {
+        if (!nextCompleted.find(c => c.id === nc.id)) { // Avoid duplicates in completed
+            nextCompleted.push(nc);
+        } else { // If somehow already in completed, ensure it's the updated version
+            nextCompleted = nextCompleted.map(c => c.id === nc.id ? nc : c);
         }
     });
-
-    setActiveContracts(stillActive.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
-    setCompletedContracts(finalCompletedContracts.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    
+    setActiveContracts(nextActive.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
+    setCompletedContracts(nextCompleted.sort((a,b) => a.contractNumber.localeCompare(b.contractNumber)));
 
     setTimeout(() => {
         contractsThatBecameCompleteMessages.forEach(msg => toast(msg));
@@ -471,6 +472,7 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
                   onRemoveGood={handleRemoveGood}
                   onAddGoodToTask={handleAddGoodToTask}
                   onToggleTaskStatus={handleToggleTaskStatus}
+                  onOpenEditModal={handleOpenEditModal}
                 />
               </TabsContent>
               <TabsContent value="destinations">
@@ -494,6 +496,13 @@ const handleMarkDestinationTasksComplete = useCallback((destinationName: string)
         isOpen={isAddContractModalOpen}
         onOpenChange={setIsAddContractModalOpen}
         onContractSubmit={handleModalContractSubmit}
+      />
+
+      <EditContractModal
+        isOpen={isEditContractModalOpen}
+        onOpenChange={setIsEditContractModalOpen}
+        onContractUpdate={handleContractUpdate}
+        contractToEdit={contractToEdit}
       />
       
       <footer className="text-center p-6 text-muted-foreground text-sm border-t border-border mt-12">

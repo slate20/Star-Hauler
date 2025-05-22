@@ -37,6 +37,14 @@ export interface NewContractFormData { // This is what onContractSubmit will rec
   destinationEntries: ModalDestinationEntry[];
 }
 
+// Types for EditContractModal
+export interface EditContractFormData {
+  id: string;
+  contractNumber: string;
+  rewardK: number;
+}
+
+
 // Types for Destinations Overview
 export interface AggregatedGoodForDestination {
   productName: string;
@@ -49,3 +57,4 @@ export interface DestinationOverview {
   // Store references to the original tasks to update them later
   contributingTaskRefs: Array<{ contractId: string; taskId: string }>;
 }
+
