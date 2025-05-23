@@ -12,6 +12,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList, // Import CommandList
 } from "@/components/ui/command"
 import {
   Popover,
@@ -96,7 +97,7 @@ export function Combobox({
   
   // Handle keyboard selection
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (filteredOptions.length === 0) return
+    if (filteredOptions.length === 0 && e.key !== 'Escape') return
 
     // Handle arrow up/down for navigation
     if (e.key === 'ArrowDown') {
@@ -110,7 +111,7 @@ export function Combobox({
     } else if (e.key === 'Enter') {
       // Select the highlighted item when Enter is pressed
       e.preventDefault()
-      if (filteredOptions[highlightedIndex]) {
+      if (filteredOptions.length > 0 && filteredOptions[highlightedIndex]) {
         onChange(filteredOptions[highlightedIndex].value)
       }
       setOpen(false)
@@ -167,35 +168,34 @@ export function Combobox({
             value={searchQuery}
             autoFocus
           />
-          <CommandEmpty>{emptyMessage}</CommandEmpty>
-          <CommandGroup className="max-h-60 overflow-y-auto">
-            {filteredOptions.map((option, index) => (
-              <CommandItem
-                key={option.value}
-                value={option.value}
-                onSelect={(currentValue: string) => {
-                  onChange(currentValue)
-                  setOpen(false)
-                }}
-                onMouseEnter={() => setHighlightedIndex(index)}
-                aria-selected={highlightedIndex === index}
-                className={cn(
-                  // Highlighted item (keyboard navigation or mouse hover)
-                  // This is handled by aria-selected in base CommandItem now
-                  // Selected item visual distinction (checkmark) is handled below
-                  value === option.value && "font-medium" // Keep for checkmark logic consistency
-                )}
-              >
-                <Check
+          <CommandList className="max-h-60"> {/* Use CommandList and set max-h here */}
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <CommandGroup> {/* CommandGroup no longer needs scroll properties */}
+              {filteredOptions.map((option, index) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.value}
+                  onSelect={(currentValue: string) => {
+                    onChange(currentValue)
+                    setOpen(false)
+                  }}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  aria-selected={highlightedIndex === index}
                   className={cn(
-                    "mr-2 h-4 w-4 text-primary", // Checkmark uses primary color
-                    value === option.value ? "opacity-100" : "opacity-0"
+                    value === option.value && "font-medium"
                   )}
-                />
-                {option.label}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4 text-primary", 
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
