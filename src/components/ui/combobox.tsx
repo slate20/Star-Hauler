@@ -11,8 +11,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
-  CommandList, // Import CommandList
+  CommandList,
 } from "@/components/ui/command"
 import {
   Popover,
@@ -28,10 +27,10 @@ export interface ComboboxOption {
 
 interface ComboboxProps {
   options: ComboboxOption[]
-  value: string
-  onChange: (value: string) => void
+  value: string // The currently selected value
+  onChange: (value: string) => void // Callback when value changes
   placeholder?: string
-  emptyMessage?: string
+  emptyMessage?: string // Message when search yields no results
   className?: string
   disabled?: boolean
   onFocus?: () => void
@@ -49,80 +48,39 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [highlightedIndex, setHighlightedIndex] = React.useState(0)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  // Filter options based on search query
-  const filteredOptions = React.useMemo(() => {
-    if (!searchQuery) return options
-    
-    const query = searchQuery.toLowerCase();
-    return options.filter((option) => {
-      const label = option.label.toLowerCase();
-      const value = option.value.toLowerCase();
-      
-      // Check if the query matches any part of the label or value
-      return label.includes(query) || value.includes(query);
-    });
-  }, [options, searchQuery])
-  
-  // Handle search query changes
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    // Open the dropdown when the user starts typing
-    if (query && !open) {
-      setOpen(true);
+  // When popover opens, clear search query to show all options initially.
+  useEffect(() => {
+    if (open) {
+      setSearchQuery("");
     }
-  }
+  }, [open]);
 
-  // Find the selected option label
   const selectedLabel = React.useMemo(() => {
     const selectedOption = options.find((option) => option.value === value)
     return selectedOption?.label || ""
   }, [options, value])
-  
-  // Reset highlighted index when filtered options change
-  useEffect(() => {
-    setHighlightedIndex(0)
-  }, [filteredOptions])
 
-  // Auto-select first item when options change
-  useEffect(() => {
-    if (open && filteredOptions.length > 0 && inputRef.current) {
-      // Focus the input and set aria-activedescendant to the first item
-      inputRef.current.focus()
+  // Enhanced CommandEmpty message logic
+  const getEmptyMessage = () => {
+    if (options.length === 0) {
+      return "No options available.";
     }
-  }, [open, filteredOptions])
-  
-  // Handle keyboard selection
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (filteredOptions.length === 0 && e.key !== 'Escape') return
-
-    // Handle arrow up/down for navigation
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setHighlightedIndex(prev => 
-        prev < filteredOptions.length - 1 ? prev + 1 : prev
-      )
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setHighlightedIndex(prev => prev > 0 ? prev - 1 : 0)
-    } else if (e.key === 'Enter') {
-      // Select the highlighted item when Enter is pressed
-      e.preventDefault()
-      if (filteredOptions.length > 0 && filteredOptions[highlightedIndex]) {
-        onChange(filteredOptions[highlightedIndex].value)
-      }
-      setOpen(false)
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      setOpen(false)
+    if (searchQuery) {
+      return emptyMessage; // "No results found."
     }
-  }
+    return "Type to search or select an option.";
+  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen && buttonRef.current) {
+        // Return focus to trigger when popover closes, e.g. on Escape
+        // This is handled by Radix Popover's default behavior if focus was inside.
+      }
+    }}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
@@ -130,26 +88,18 @@ export function Combobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between", 
+            "w-full justify-between",
             open ? "ring-2 ring-ring ring-offset-1" : "",
             className
           )}
           disabled={disabled}
           onClick={() => {
             setOpen(true);
-            // Focus the input when dropdown is opened
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.focus();
-                // Call onFocus handler if provided
-                if (onFocus) {
-                  onFocus();
-                }
-              }
-            }, 0);
+            if (onFocus) {
+              onFocus();
+            }
           }}
           onFocus={() => {
-            // Call onFocus handler if provided
             if (onFocus) {
               onFocus();
             }
@@ -159,36 +109,63 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-80" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0">
-        <Command onKeyDown={handleKeyDown}>
-          <CommandInput 
-            ref={inputRef}
-            placeholder={`Search ${placeholder.toLowerCase()}...`} 
-            onValueChange={handleSearchChange}
-            value={searchQuery}
-            autoFocus
+      <PopoverContent
+        className="p-0 w-[var(--radix-popover-trigger-width)]" // Match trigger width
+        align="start" // Align to start of trigger
+        sideOffset={4} // Default side offset
+        onCloseAutoFocus={(event) => {
+          // Prevent Radix from returning focus to body if we want to control it
+          // For instance, return focus to the trigger button
+          if (buttonRef.current) {
+             // event.preventDefault(); // Only if overriding default Radix behavior
+             // buttonRef.current.focus(); // This is often handled by Radix automatically
+          }
+        }}
+      >
+        <Command
+          // cmdk will filter items based on CommandInput's value
+          // The value prop on Command can be used for controlled selection,
+          // but for a simple combobox, onSelect on CommandItem is often enough.
+          // Add a general keydown handler for Escape if not handled by Popover
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setOpen(false);
+              if (buttonRef.current) {
+                buttonRef.current.focus();
+              }
+            }
+          }}
+        >
+          <CommandInput
+            autoFocus // Focus input when popover opens
+            placeholder={`Search ${placeholder.toLowerCase()}...`}
+            value={searchQuery} // Controlled input for search query
+            onValueChange={setSearchQuery} // Update search query as user types
           />
-          <CommandList className="max-h-60"> {/* Use CommandList and set max-h here */}
-            <CommandEmpty>{emptyMessage}</CommandEmpty>
-            <CommandGroup> {/* CommandGroup no longer needs scroll properties */}
-              {filteredOptions.map((option, index) => (
+          <CommandList className="max-h-60"> {/* Scrollable list area */}
+            <CommandEmpty>{getEmptyMessage()}</CommandEmpty>
+            <CommandGroup>
+              {/* Render all options; cmdk filters based on CommandInput value (searchQuery) */}
+              {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={option.value}
+                  value={option.value} // This value is used by cmdk for matching and selection
                   onSelect={(currentValue: string) => {
-                    onChange(currentValue)
-                    setOpen(false)
+                    // currentValue is option.value of the selected item
+                    // This is triggered by click or Enter on a cmdk-selected item
+                    onChange(currentValue);
+                    setOpen(false);
+                    setSearchQuery(""); // Clear search query after selection
+                    if (buttonRef.current) {
+                      buttonRef.current.focus(); // Return focus to the trigger
+                    }
                   }}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  aria-selected={highlightedIndex === index}
-                  className={cn(
-                    value === option.value && "font-medium"
-                  )}
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4 text-primary", 
-                      value === option.value ? "opacity-100" : "opacity-0"
+                      "mr-2 h-4 w-4 text-primary",
+                      value === option.value ? "opacity-100" : "opacity-0" // Show checkmark for the *final* selected value
                     )}
                   />
                   {option.label}
