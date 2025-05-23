@@ -43,7 +43,7 @@ export const StopwatchDisplay: React.FC<StopwatchDisplayProps> = ({
         "flex items-center gap-2",
         variant === 'panel' && "justify-center text-center w-full" // Center time in panel
       )}>
-        <Timer className="h-5 w-5 text-primary flex-shrink-0" />
+        {/* <Timer className="h-5 w-5 text-primary flex-shrink-0" /> */}
         <p className={cn(
           "font-mono font-semibold text-accent text-center",
           variant === 'header' ? "text-xl md:text-2xl min-w-[80px] md:min-w-[100px]" : "text-3xl"

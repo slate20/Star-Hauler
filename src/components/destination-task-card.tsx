@@ -68,7 +68,7 @@ export const DestinationTaskCard: React.FC<DestinationTaskCardProps> = ({
                 <span className="font-medium mr-2 truncate" title={good.productName}>{good.productName}</span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
-                <Warehouse className="mr-1 h-4 w-4 text-muted-foreground" />
+               {/* <Warehouse className="mr-1 h-4 w-4 text-muted-foreground" /> */}
                 <span className="mr-2 w-12 text-right">{good.quantity.toLocaleString()}</span>
                 {!task.isComplete && (
                   <>

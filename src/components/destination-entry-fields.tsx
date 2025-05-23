@@ -35,8 +35,8 @@ export const DestinationEntryFields: React.FC<DestinationEntryFieldsProps> = ({
   const destinationOptions = useMemo<ComboboxOption[]>(() => {
     // Add an option for each destination from the data file
     const dataOptions = destinations.map(dest => ({
-      value: dest.name, // Use name instead of ID for the value
-      label: dest.name + (dest.system ? ` (${dest.system})` : '')
+      value: dest.name + ` (${dest.body ? dest.body : dest.system})`, // Use name instead of ID for the value
+      label: dest.name + ` (${dest.body ? dest.body : dest.system})`
     }));
     
     // Add custom option for backward compatibility with existing data
