@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -117,11 +118,12 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-      "transition-colors duration-100 pointer-events-auto",
-      "hover:bg-primary/80 hover:text-primary-foreground",
-      "aria-selected:bg-primary/80 aria-selected:text-primary-foreground",
-      "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
+      "cursor-default", // Default cursor, interaction via onSelect
+      "hover:bg-accent hover:text-accent-foreground",
+      "focus:bg-accent focus:text-accent-foreground",
+      "aria-selected:bg-accent aria-selected:text-accent-foreground", // Use accent for selection indication in list
+      "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
       className
     )}
     {...props}

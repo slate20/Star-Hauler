@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -109,7 +110,9 @@ export function Combobox({
     } else if (e.key === 'Enter') {
       // Select the highlighted item when Enter is pressed
       e.preventDefault()
-      onChange(filteredOptions[highlightedIndex].value)
+      if (filteredOptions[highlightedIndex]) {
+        onChange(filteredOptions[highlightedIndex].value)
+      }
       setOpen(false)
     } else if (e.key === 'Escape') {
       e.preventDefault()
@@ -177,18 +180,15 @@ export function Combobox({
                 onMouseEnter={() => setHighlightedIndex(index)}
                 aria-selected={highlightedIndex === index}
                 className={cn(
-                  "cursor-pointer transition-colors duration-100 pointer-events-auto",
                   // Highlighted item (keyboard navigation or mouse hover)
-                  highlightedIndex === index && "bg-primary/80 text-primary-foreground",
-                  // Hover state
-                  "hover:bg-primary/80 hover:text-primary-foreground",
-                  // Selected item - no background, just rely on the checkmark
-                  value === option.value && "font-medium"
+                  // This is handled by aria-selected in base CommandItem now
+                  // Selected item visual distinction (checkmark) is handled below
+                  value === option.value && "font-medium" // Keep for checkmark logic consistency
                 )}
               >
                 <Check
                   className={cn(
-                    "mr-2 h-4 w-4 text-primary",
+                    "mr-2 h-4 w-4 text-primary", // Checkmark uses primary color
                     value === option.value ? "opacity-100" : "opacity-0"
                   )}
                 />
