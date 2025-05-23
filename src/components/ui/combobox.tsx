@@ -11,6 +11,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandInput,
+  CommandItem, // Added CommandItem to imports
   CommandList,
 } from "@/components/ui/command"
 import {
