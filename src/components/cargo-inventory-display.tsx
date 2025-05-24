@@ -44,7 +44,7 @@ export const CargoInventoryDisplay: React.FC<CargoInventoryDisplayProps> = ({ co
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
             <Boxes className="mr-2 h-5 w-5 text-primary" />
-            Cargo Inventory
+            Cargo Manifest
           </CardTitle>
           <CardDescription>No pending cargo in active contracts.</CardDescription>
         </CardHeader>
@@ -57,7 +57,7 @@ export const CargoInventoryDisplay: React.FC<CargoInventoryDisplayProps> = ({ co
       <CardHeader>
         <CardTitle className="text-xl flex items-center">
           <Boxes className="mr-2 h-5 w-5 text-primary" />
-          Cargo Inventory
+          Cargo Manifest
         </CardTitle>
         <CardDescription>Total SCU for each pending good across all active, incomplete tasks.</CardDescription>
       </CardHeader>
@@ -82,7 +82,7 @@ export const CargoInventoryDisplay: React.FC<CargoInventoryDisplayProps> = ({ co
             </ScrollArea>
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between items-center text-lg font-semibold">
-                <span>Grand Total Pending SCU:</span>
+                <span>Grand Total SCU:</span>
                 <span className="text-primary">{grandTotalScu.toLocaleString()} SCU</span>
               </div>
             </div>
